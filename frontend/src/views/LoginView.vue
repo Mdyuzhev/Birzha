@@ -302,6 +302,29 @@ async function handleLogin() {
   margin-bottom: 16px;
 }
 
+.login-form :deep(.el-input__wrapper) {
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-glass) !important;
+  box-shadow: none !important;
+}
+
+.login-form :deep(.el-input__wrapper:hover) {
+  border-color: var(--accent) !important;
+}
+
+.login-form :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15) !important;
+}
+
+.login-form :deep(.el-input__inner) {
+  color: var(--text-primary) !important;
+}
+
+.login-form :deep(.el-input__inner::placeholder) {
+  color: var(--text-muted) !important;
+}
+
 .login-btn {
   width: 100%;
   height: 52px;

@@ -19,6 +19,9 @@ export const employeesApi = {
   getHistory(id) {
     return client.get(`/employees/${id}/history`)
   },
+  getRecentHistory(limit = 15) {
+    return client.get('/employees/history/recent', { params: { limit } })
+  },
   export(params = {}) {
     return client.get('/employees/export', {
       params,

@@ -11,6 +11,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class EmployeeHistoryDto {
     private Long id;
+    private Long employeeId;
+    private String employeeFullName;
     private String changedBy;
     private LocalDateTime changedAt;
     private String fieldName;

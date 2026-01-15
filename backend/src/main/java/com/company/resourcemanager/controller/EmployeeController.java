@@ -94,6 +94,12 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.getHistory(id));
     }
 
+    @GetMapping("/history/recent")
+    public ResponseEntity<List<EmployeeHistoryDto>> getRecentHistory(
+            @RequestParam(defaultValue = "15") int limit) {
+        return ResponseEntity.ok(employeeService.getRecentHistory(limit));
+    }
+
     @GetMapping("/export")
     public ResponseEntity<byte[]> exportToExcel(
             @RequestParam(required = false) String search,

@@ -23,6 +23,9 @@ const activeFilters = ref({})
 const dateConditions = ref({})
 const exportLoading = ref(false)
 const exportDialogVisible = ref(false)
+const historyDialogVisible = ref(false)
+const historyLoading = ref(false)
+const historyItems = ref([])
 
 // Пагинация - 4 строки на странице
 const pagination = ref({
@@ -193,6 +196,54 @@ function goToAdmin() {
   router.push('/admin')
 }
 
+function goToAnalytics() {
+  router.push('/analytics')
+}
+
+async function openHistoryDialog() {
+  historyDialogVisible.value = true
+  historyLoading.value = true
+  try {
+    const response = await employeesApi.getRecentHistory(15)
+    historyItems.value = response.data
+  } catch (error) {
+    ElMessage.error('Ошибка загрузки журнала')
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const fieldNameMap = {
+  fullName: 'ФИО',
+  email: 'Email',
+  status: 'Статус',
+  department: 'Отдел',
+  position: 'Должность',
+  grade: 'Грейд',
+  location: 'Локация',
+  hire_date: 'Дата найма',
+  project: 'Проект',
+  skills: 'Навыки',
+  mentor: 'Ментор',
+  salary: 'Зарплата'
+}
+
+function getFieldDisplayName(fieldName) {
+  return fieldNameMap[fieldName] || fieldName
+}
+
 function openFilterDialog() {
   filterDialogVisible.value = true
 }
@@ -315,8 +366,22 @@ onMounted(async () => {
             <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1z"/>
           </svg>
         </button>
+        <!-- History Journal -->
+        <el-button class="header-btn" @click="openHistoryDialog">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+          </svg>
+          <span>Журнал</span>
+        </el-button>
+        <!-- Analytics -->
+        <el-button class="header-btn" @click="goToAnalytics">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+          </svg>
+          <span>Аналитика</span>
+        </el-button>
         <!-- Admin Settings -->
-        <el-button v-if="authStore.isAdmin" class="settings-btn" @click="goToAdmin">
+        <el-button v-if="authStore.isAdmin" class="header-btn" @click="goToAdmin">
           <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
             <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
           </svg>
@@ -625,6 +690,46 @@ onMounted(async () => {
         </p>
       </div>
     </el-dialog>
+
+    <!-- History Dialog -->
+    <el-dialog
+      v-model="historyDialogVisible"
+      title="Журнал изменений"
+      width="700px"
+      class="history-dialog"
+    >
+      <div v-loading="historyLoading" class="history-content">
+        <div v-if="historyItems.length === 0 && !historyLoading" class="history-empty">
+          Нет записей об изменениях
+        </div>
+        <div v-else class="history-list">
+          <div
+            v-for="item in historyItems"
+            :key="item.id"
+            class="history-item"
+          >
+            <div class="history-header">
+              <span class="history-author">{{ item.changedBy }}</span>
+              <span class="history-date">{{ formatDate(item.changedAt) }}</span>
+            </div>
+            <div class="history-employee">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+              <span>{{ item.employeeFullName }}</span>
+            </div>
+            <div class="history-change">
+              <span class="history-field">{{ getFieldDisplayName(item.fieldName) }}:</span>
+              <span class="history-old">{{ item.oldValue || '—' }}</span>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" class="history-arrow">
+                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+              </svg>
+              <span class="history-new">{{ item.newValue || '—' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -682,7 +787,7 @@ onMounted(async () => {
 /* Header */
 .app-header {
   position: sticky;
-  top: 16px;
+  top: 2px;
   margin: 16px 24px 0;
   padding: 16px 24px;
   display: flex;
@@ -761,33 +866,43 @@ onMounted(async () => {
   color: var(--accent);
 }
 
+.header-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-glass) !important;
+  color: var(--text-primary) !important;
+  border-radius: 20px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.header-btn:hover {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: white !important;
+}
+
 .logout-btn {
   display: flex;
   align-items: center;
   gap: 6px;
+  height: 40px;
+  padding: 0 16px;
   background: var(--bg-glass) !important;
   border: 1px solid var(--border-glass) !important;
   color: var(--text-primary) !important;
+  border-radius: 20px;
+  font-weight: 500;
 }
 
 .logout-btn:hover {
   background: rgba(239, 68, 68, 0.1) !important;
   border-color: var(--danger) !important;
   color: var(--danger) !important;
-}
-
-.settings-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg-glass) !important;
-  border: 1px solid var(--accent) !important;
-  color: var(--accent) !important;
-}
-
-.settings-btn:hover {
-  background: var(--accent) !important;
-  color: white !important;
 }
 
 /* Main */
@@ -803,7 +918,15 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 28px;
+  margin-bottom: 12px;
+  padding: 16px 20px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  position: sticky;
+  top: 80px;
+  z-index: 90;
 }
 
 .page-title h1 {
@@ -846,9 +969,17 @@ onMounted(async () => {
 /* Toolbar */
 .toolbar {
   margin-bottom: 20px;
+  padding: 12px 16px;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  position: sticky;
+  top: 196px;
+  z-index: 80;
 }
 
 .btn-add {
@@ -1288,6 +1419,93 @@ onMounted(async () => {
     flex-wrap: wrap;
   }
 }
+
+/* History Dialog */
+.history-content {
+  min-height: 200px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.history-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-item {
+  background: rgba(30, 30, 50, 0.9);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.history-author {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.history-date {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.history-employee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.history-employee svg {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.history-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.history-field {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.history-old {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.history-arrow {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.history-new {
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
 </style>
 
 <style>
@@ -1326,5 +1544,37 @@ onMounted(async () => {
 
 .pagination-size-dropdown .el-popper__arrow {
   display: none !important;
+}
+
+/* History Dialog styles */
+.history-dialog .el-dialog {
+  background: rgba(20, 20, 35, 0.98) !important;
+  border: 1px solid rgba(124, 58, 237, 0.3) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(20px);
+}
+
+.history-dialog .el-dialog__header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 24px !important;
+}
+
+.history-dialog .el-dialog__title {
+  color: #fff !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+}
+
+.history-dialog .el-dialog__body {
+  padding: 20px 24px !important;
+  background: transparent !important;
+}
+
+.history-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.history-dialog .el-dialog__headerbtn:hover .el-dialog__close {
+  color: #fff !important;
 }
 </style>

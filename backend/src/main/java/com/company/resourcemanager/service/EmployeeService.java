@@ -204,15 +204,30 @@ public class EmployeeService {
 
         return historyRepository.findByEmployeeIdOrderByChangedAtDesc(employeeId)
                 .stream()
-                .map(h -> EmployeeHistoryDto.builder()
-                        .id(h.getId())
-                        .changedBy(h.getChangedBy().getUsername())
-                        .changedAt(h.getChangedAt())
-                        .fieldName(h.getFieldName())
-                        .oldValue(h.getOldValue())
-                        .newValue(h.getNewValue())
-                        .build())
+                .map(this::toHistoryDto)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<EmployeeHistoryDto> getRecentHistory(int limit) {
+        return historyRepository.findAllByOrderByChangedAtDesc(
+                org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream()
+                .map(this::toHistoryDto)
+                .toList();
+    }
+
+    private EmployeeHistoryDto toHistoryDto(EmployeeHistory h) {
+        return EmployeeHistoryDto.builder()
+                .id(h.getId())
+                .employeeId(h.getEmployee().getId())
+                .employeeFullName(h.getEmployee().getFullName())
+                .changedBy(h.getChangedBy().getUsername())
+                .changedAt(h.getChangedAt())
+                .fieldName(h.getFieldName())
+                .oldValue(h.getOldValue())
+                .newValue(h.getNewValue())
+                .build();
     }
 
     private void saveHistory(Employee employee, User changedBy, String fieldName, String oldValue, String newValue) {
