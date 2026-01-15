@@ -1,20 +1,26 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useColumnsStore } from '@/stores/columns'
+import { useNotificationsStore } from '@/stores/notifications'
 import { employeesApi } from '@/api/employees'
 import { dictionariesApi } from '@/api/dictionaries'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const columnsStore = useColumnsStore()
+const notificationsStore = useNotificationsStore()
 
 const loading = ref(false)
 const employees = ref([])
 const dictionaries = ref({})
+const historyDialogVisible = ref(false)
+const historyLoading = ref(false)
+const historyItems = ref([])
 
 // Настройки круговой диаграммы
 const pieField = ref('status')
@@ -103,8 +109,58 @@ async function handleLogout() {
   router.push('/login')
 }
 
+async function openHistoryDialog() {
+  historyDialogVisible.value = true
+  historyLoading.value = true
+  notificationsStore.markAsSeen()
+  try {
+    const response = await employeesApi.getRecentHistory(15)
+    historyItems.value = response.data
+  } catch (error) {
+    ElMessage.error('Ошибка загрузки журнала')
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const fieldNameMap = {
+  fullName: 'ФИО',
+  email: 'Email',
+  status: 'Статус',
+  department: 'Отдел',
+  position: 'Должность',
+  grade: 'Грейд',
+  location: 'Локация',
+  hire_date: 'Дата найма',
+  project: 'Проект',
+  skills: 'Навыки',
+  mentor: 'Ментор',
+  salary: 'Зарплата'
+}
+
+function getFieldDisplayName(fieldName) {
+  return fieldNameMap[fieldName] || fieldName
+}
+
 onMounted(() => {
   fetchData()
+  notificationsStore.startPolling()
+})
+
+onUnmounted(() => {
+  notificationsStore.stopPolling()
 })
 </script>
 
@@ -143,6 +199,13 @@ onMounted(() => {
           <svg v-else viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1z"/>
           </svg>
+        </button>
+        <!-- History Bell -->
+        <button class="bell-btn" @click="openHistoryDialog">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+          </svg>
+          <span v-if="notificationsStore.newCount > 0" class="bell-badge">{{ notificationsStore.newCount }}</span>
         </button>
         <el-button class="header-btn active-btn">
           <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
@@ -299,6 +362,46 @@ onMounted(() => {
         </div>
       </div>
     </main>
+
+    <!-- History Dialog -->
+    <el-dialog
+      v-model="historyDialogVisible"
+      title="Журнал изменений"
+      width="700px"
+      class="history-dialog"
+    >
+      <div v-loading="historyLoading" class="history-content">
+        <div v-if="historyItems.length === 0 && !historyLoading" class="history-empty">
+          Нет записей об изменениях
+        </div>
+        <div v-else class="history-list">
+          <div
+            v-for="item in historyItems"
+            :key="item.id"
+            class="history-item"
+          >
+            <div class="history-header">
+              <span class="history-author">{{ item.changedBy }}</span>
+              <span class="history-date">{{ formatDate(item.changedAt) }}</span>
+            </div>
+            <div class="history-employee">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+              <span>{{ item.employeeFullName }}</span>
+            </div>
+            <div class="history-change">
+              <span class="history-field">{{ getFieldDisplayName(item.fieldName) }}:</span>
+              <span class="history-old">{{ item.oldValue || '—' }}</span>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" class="history-arrow">
+                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+              </svg>
+              <span class="history-new">{{ item.newValue || '—' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -542,6 +645,140 @@ export default {
   color: var(--danger) !important;
 }
 
+/* Bell Button */
+.bell-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.bell-btn:hover {
+  background: var(--bg-glass-strong);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.05);
+}
+
+.bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  animation: bellPulse 2s ease-in-out infinite;
+}
+
+@keyframes bellPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* History Dialog */
+.history-content {
+  min-height: 200px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.history-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-item {
+  background: rgba(30, 30, 50, 0.9);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.history-author {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.history-date {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.history-employee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.history-employee svg {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.history-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.history-field {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.history-old {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.history-arrow {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.history-new {
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
 /* Main */
 .app-main {
   padding: 32px 24px;
@@ -783,5 +1020,39 @@ export default {
   .summary-grid {
     grid-template-columns: 1fr;
   }
+}
+</style>
+
+<style>
+/* History Dialog styles */
+.history-dialog .el-dialog {
+  background: rgba(20, 20, 35, 0.98) !important;
+  border: 1px solid rgba(124, 58, 237, 0.3) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(20px);
+}
+
+.history-dialog .el-dialog__header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 24px !important;
+}
+
+.history-dialog .el-dialog__title {
+  color: #fff !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+}
+
+.history-dialog .el-dialog__body {
+  padding: 20px 24px !important;
+  background: transparent !important;
+}
+
+.history-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.history-dialog .el-dialog__headerbtn:hover .el-dialog__close {
+  color: #fff !important;
 }
 </style>

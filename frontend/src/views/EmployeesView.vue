@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useColumnsStore } from '@/stores/columns'
+import { useNotificationsStore } from '@/stores/notifications'
 import { employeesApi } from '@/api/employees'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmployeeDialog from '@/components/EmployeeDialog.vue'
@@ -12,6 +13,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const columnsStore = useColumnsStore()
+const notificationsStore = useNotificationsStore()
 
 const employees = ref([])
 const loading = ref(false)
@@ -203,6 +205,7 @@ function goToAnalytics() {
 async function openHistoryDialog() {
   historyDialogVisible.value = true
   historyLoading.value = true
+  notificationsStore.markAsSeen()
   try {
     const response = await employeesApi.getRecentHistory(15)
     historyItems.value = response.data
@@ -326,6 +329,11 @@ async function handleExport(exportAll) {
 onMounted(async () => {
   await columnsStore.fetchColumns()
   await fetchEmployees()
+  notificationsStore.startPolling()
+})
+
+onUnmounted(() => {
+  notificationsStore.stopPolling()
 })
 </script>
 
@@ -366,13 +374,13 @@ onMounted(async () => {
             <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1z"/>
           </svg>
         </button>
-        <!-- History Journal -->
-        <el-button class="header-btn" @click="openHistoryDialog">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-            <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+        <!-- History Bell -->
+        <button class="bell-btn" @click="openHistoryDialog">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
           </svg>
-          <span>Журнал</span>
-        </el-button>
+          <span v-if="notificationsStore.newCount > 0" class="bell-badge">{{ notificationsStore.newCount }}</span>
+        </button>
         <!-- Analytics -->
         <el-button class="header-btn" @click="goToAnalytics">
           <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
@@ -903,6 +911,53 @@ onMounted(async () => {
   background: rgba(239, 68, 68, 0.1) !important;
   border-color: var(--danger) !important;
   color: var(--danger) !important;
+}
+
+/* Bell Button */
+.bell-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.bell-btn:hover {
+  background: var(--bg-glass-strong);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.05);
+}
+
+.bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  animation: bellPulse 2s ease-in-out infinite;
+}
+
+@keyframes bellPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
 }
 
 /* Main */

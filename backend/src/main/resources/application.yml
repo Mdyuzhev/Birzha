@@ -1,4 +1,6 @@
 spring:
+  jackson:
+    time-zone: Europe/Moscow
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:31432}/${DB_NAME:resourcedb}
     username: ${DB_USER:resourceuser}
