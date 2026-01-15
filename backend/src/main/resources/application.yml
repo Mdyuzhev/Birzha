@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:31432}/${DB_NAME:resourcedb}
+    username: ${DB_USER:resourceuser}
+    password: ${DB_PASSWORD:resourcepass}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:default-secret-key-for-development-minimum-32-chars}
+  expiration: 86400000
+
+logging:
+  level:
+    com.company.resourcemanager: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: resource-manager-db
+    environment:
+      POSTGRES_DB: resourcedb
+      POSTGRES_USER: resourceuser
+      POSTGRES_PASSWORD: resourcepass
+    ports:
+      - "31432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resourceuser -d resourcedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - resource-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resource-manager-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/resourcedb
+      SPRING_DATASOURCE_USERNAME: resourceuser
+      SPRING_DATASOURCE_PASSWORD: resourcepass
+      SPRING_FLYWAY_ENABLED: "true"
+      JWT_SECRET: your-super-secret-jwt-key-minimum-32-characters-long
+    ports:
+      - "31081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - resource-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resource-manager-frontend
+    ports:
+      - "31080:80"
+    depends_on:
+      - backend
+    networks:
+      - resource-network
+
+volumes:
+  postgres_data:
+
+networks:
+  resource-network:
+    driver: bridge

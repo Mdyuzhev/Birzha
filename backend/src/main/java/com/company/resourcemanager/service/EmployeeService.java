@@ -1,0 +1,165 @@
+package com.company.resourcemanager.service;
+
+import com.company.resourcemanager.dto.*;
+import com.company.resourcemanager.entity.Employee;
+import com.company.resourcemanager.entity.EmployeeHistory;
+import com.company.resourcemanager.entity.User;
+import com.company.resourcemanager.exception.ResourceNotFoundException;
+import com.company.resourcemanager.repository.EmployeeHistoryRepository;
+import com.company.resourcemanager.repository.EmployeeRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+@Service
+@RequiredArgsConstructor
+public class EmployeeService {
+
+    private final EmployeeRepository employeeRepository;
+    private final EmployeeHistoryRepository historyRepository;
+    private final AuthService authService;
+
+    public Page<EmployeeDto> findAll(Map<String, String> filters, Pageable pageable) {
+        Specification<Employee> spec = Specification.where(null);
+
+        if (filters != null) {
+            for (Map.Entry<String, String> entry : filters.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+
+                if (value == null || value.isEmpty()) continue;
+
+                if ("search".equals(key)) {
+                    spec = spec.and((root, query, cb) ->
+                            cb.or(
+                                    cb.like(cb.lower(root.get("fullName")), "%" + value.toLowerCase() + "%"),
+                                    cb.like(cb.lower(root.get("email")), "%" + value.toLowerCase() + "%")
+                            ));
+                } else if ("fullName".equals(key)) {
+                    spec = spec.and((root, query, cb) ->
+                            cb.like(cb.lower(root.get("fullName")), "%" + value.toLowerCase() + "%"));
+                } else if ("email".equals(key)) {
+                    spec = spec.and((root, query, cb) ->
+                            cb.like(cb.lower(root.get("email")), "%" + value.toLowerCase() + "%"));
+                }
+            }
+        }
+
+        return employeeRepository.findAll(spec, pageable).map(this::toDto);
+    }
+
+    public EmployeeDto findById(Long id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+        return toDto(employee);
+    }
+
+    @Transactional
+    public EmployeeDto create(CreateEmployeeRequest request) {
+        Employee employee = Employee.builder()
+                .fullName(request.getFullName())
+                .email(request.getEmail())
+                .customFields(request.getCustomFields() != null ? request.getCustomFields() : new HashMap<>())
+                .build();
+
+        employee = employeeRepository.save(employee);
+        return toDto(employee);
+    }
+
+    @Transactional
+    public EmployeeDto update(Long id, UpdateEmployeeRequest request) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+
+        User currentUser = authService.getCurrentUserEntity();
+
+        if (!Objects.equals(employee.getFullName(), request.getFullName())) {
+            saveHistory(employee, currentUser, "fullName", employee.getFullName(), request.getFullName());
+            employee.setFullName(request.getFullName());
+        }
+
+        if (!Objects.equals(employee.getEmail(), request.getEmail())) {
+            saveHistory(employee, currentUser, "email", employee.getEmail(), request.getEmail());
+            employee.setEmail(request.getEmail());
+        }
+
+        if (request.getCustomFields() != null) {
+            Map<String, Object> oldFields = employee.getCustomFields() != null ? employee.getCustomFields() : new HashMap<>();
+            Map<String, Object> newFields = request.getCustomFields();
+
+            for (Map.Entry<String, Object> entry : newFields.entrySet()) {
+                String fieldName = entry.getKey();
+                Object newValue = entry.getValue();
+                Object oldValue = oldFields.get(fieldName);
+
+                if (!Objects.equals(oldValue, newValue)) {
+                    saveHistory(employee, currentUser, fieldName,
+                            oldValue != null ? oldValue.toString() : null,
+                            newValue != null ? newValue.toString() : null);
+                }
+            }
+
+            employee.setCustomFields(newFields);
+        }
+
+        employee = employeeRepository.save(employee);
+        return toDto(employee);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!employeeRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Employee not found with id: " + id);
+        }
+        employeeRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EmployeeHistoryDto> getHistory(Long employeeId) {
+        if (!employeeRepository.existsById(employeeId)) {
+            throw new ResourceNotFoundException("Employee not found with id: " + employeeId);
+        }
+
+        return historyRepository.findByEmployeeIdOrderByChangedAtDesc(employeeId)
+                .stream()
+                .map(h -> EmployeeHistoryDto.builder()
+                        .id(h.getId())
+                        .changedBy(h.getChangedBy().getUsername())
+                        .changedAt(h.getChangedAt())
+                        .fieldName(h.getFieldName())
+                        .oldValue(h.getOldValue())
+                        .newValue(h.getNewValue())
+                        .build())
+                .toList();
+    }
+
+    private void saveHistory(Employee employee, User changedBy, String fieldName, String oldValue, String newValue) {
+        EmployeeHistory history = EmployeeHistory.builder()
+                .employee(employee)
+                .changedBy(changedBy)
+                .fieldName(fieldName)
+                .oldValue(oldValue)
+                .newValue(newValue)
+                .build();
+        historyRepository.save(history);
+    }
+
+    private EmployeeDto toDto(Employee employee) {
+        return EmployeeDto.builder()
+                .id(employee.getId())
+                .fullName(employee.getFullName())
+                .email(employee.getEmail())
+                .customFields(employee.getCustomFields())
+                .createdAt(employee.getCreatedAt())
+                .updatedAt(employee.getUpdatedAt())
+                .build();
+    }
+}

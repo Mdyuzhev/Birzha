@@ -1,0 +1,25 @@
+{
+  "model": "sonnet",
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(sudo:*)",
+      "Bash(docker rm -f $(docker ps -aq))"
+    ]
+  },
+  "context": {
+    "project": "ResourceManager",
+    "type": "fullstack-web-app",
+    "backend": "java-spring-boot",
+    "frontend": "vue3",
+    "database": "postgresql"
+  }
+}
