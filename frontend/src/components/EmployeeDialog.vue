@@ -19,13 +19,40 @@ const form = ref({
   customFields: {}
 })
 const loading = ref(false)
+const fullNameError = ref('')
 
 const isEdit = computed(() => !!props.employee?.id)
 const title = computed(() => isEdit.value ? 'Редактирование сотрудника' : 'Новый сотрудник')
 
+// Валидация ФИО: кириллица, три слова, каждое с заглавной буквы
+const CYRILLIC_FIO_PATTERN = /^[А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+$/
+
+function validateFullName(value) {
+  if (!value || !value.trim()) {
+    return 'ФИО обязательно для заполнения'
+  }
+  const trimmed = value.trim()
+  if (/[A-Za-z]/.test(trimmed)) {
+    return 'ФИО должно быть на кириллице'
+  }
+  const parts = trimmed.split(/\s+/)
+  if (parts.length !== 3) {
+    return 'ФИО должно содержать три слова: Фамилия Имя Отчество'
+  }
+  if (!CYRILLIC_FIO_PATTERN.test(trimmed)) {
+    return 'ФИО должно быть в формате: Фамилия Имя Отчество (кириллица, каждое слово с заглавной буквы)'
+  }
+  return ''
+}
+
+function onFullNameInput() {
+  fullNameError.value = validateFullName(form.value.fullName)
+}
+
 // Инициализация формы при открытии
 watch(() => props.visible, (val) => {
   if (val) {
+    fullNameError.value = ''
     if (props.employee) {
       form.value = {
         fullName: props.employee.fullName,
@@ -47,8 +74,11 @@ watch(() => props.visible, (val) => {
 })
 
 async function handleSave() {
-  if (!form.value.fullName.trim()) {
-    ElMessage.warning('Введите ФИО')
+  // Валидация ФИО
+  const fioError = validateFullName(form.value.fullName)
+  if (fioError) {
+    fullNameError.value = fioError
+    ElMessage.warning(fioError)
     return
   }
 
@@ -63,7 +93,8 @@ async function handleSave() {
     }
     emit('close', true)
   } catch (error) {
-    ElMessage.error('Ошибка сохранения')
+    const msg = error.response?.data?.message || 'Ошибка сохранения'
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }
@@ -94,11 +125,13 @@ function handleClose() {
           <span>Основная информация</span>
         </div>
 
-        <el-form-item label="ФИО" required>
+        <el-form-item label="ФИО" required :error="fullNameError">
           <el-input
             v-model="form.fullName"
             placeholder="Иванов Иван Иванович"
             size="large"
+            @input="onFullNameInput"
+            :class="{ 'is-error': fullNameError }"
           />
         </el-form-item>
 

@@ -26,8 +26,11 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final EmployeeHistoryRepository historyRepository;
     private final AuthService authService;
+    private final CustomFieldsValidator customFieldsValidator;
+    private final FullNameValidator fullNameValidator;
 
-    public Page<EmployeeDto> findAll(Map<String, String> filters, Pageable pageable) {
+    public Page<EmployeeDto> findAll(Map<String, String> filters, Map<String, String> customFields,
+                                       Map<String, String> dateFilters, Pageable pageable) {
         Specification<Employee> spec = Specification.where(null);
 
         if (filters != null) {
@@ -53,6 +56,67 @@ public class EmployeeService {
             }
         }
 
+        // Фильтрация по customFields (JSONB) - множественные значения через запятую
+        if (customFields != null) {
+            for (Map.Entry<String, String> entry : customFields.entrySet()) {
+                String fieldName = entry.getKey();
+                String fieldValue = entry.getValue();
+
+                if (fieldValue == null || fieldValue.isEmpty()) continue;
+
+                String[] values = fieldValue.split(",");
+                spec = spec.and((root, query, cb) -> {
+                    if (values.length == 1) {
+                        return cb.equal(
+                            cb.function("jsonb_extract_path_text", String.class,
+                                root.get("customFields"), cb.literal(fieldName)),
+                            values[0].trim()
+                        );
+                    } else {
+                        jakarta.persistence.criteria.Predicate[] predicates =
+                            new jakarta.persistence.criteria.Predicate[values.length];
+                        for (int i = 0; i < values.length; i++) {
+                            final String val = values[i].trim();
+                            predicates[i] = cb.equal(
+                                cb.function("jsonb_extract_path_text", String.class,
+                                    root.get("customFields"), cb.literal(fieldName)),
+                                val
+                            );
+                        }
+                        return cb.or(predicates);
+                    }
+                });
+            }
+        }
+
+        // Фильтрация по датам: формат "condition:value" (before, after, equals)
+        if (dateFilters != null) {
+            for (Map.Entry<String, String> entry : dateFilters.entrySet()) {
+                String fieldName = entry.getKey();
+                String filterValue = entry.getValue();
+
+                if (filterValue == null || filterValue.isEmpty()) continue;
+
+                String[] parts = filterValue.split(":", 2);
+                if (parts.length != 2) continue;
+
+                String condition = parts[0];
+                String dateValue = parts[1];
+
+                spec = spec.and((root, query, cb) -> {
+                    var jsonValue = cb.function("jsonb_extract_path_text", String.class,
+                        root.get("customFields"), cb.literal(fieldName));
+
+                    return switch (condition) {
+                        case "before" -> cb.lessThan(jsonValue, dateValue);
+                        case "after" -> cb.greaterThan(jsonValue, dateValue);
+                        case "equals" -> cb.equal(jsonValue, dateValue);
+                        default -> cb.conjunction();
+                    };
+                });
+            }
+        }
+
         return employeeRepository.findAll(spec, pageable).map(this::toDto);
     }
 
@@ -64,6 +128,11 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeDto create(CreateEmployeeRequest request) {
+        // Валидация ФИО
+        fullNameValidator.validate(request.getFullName());
+        // Валидация customFields
+        customFieldsValidator.validate(request.getCustomFields());
+
         Employee employee = Employee.builder()
                 .fullName(request.getFullName())
                 .email(request.getEmail())
@@ -76,6 +145,11 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeDto update(Long id, UpdateEmployeeRequest request) {
+        // Валидация ФИО
+        fullNameValidator.validate(request.getFullName());
+        // Валидация customFields
+        customFieldsValidator.validate(request.getCustomFields());
+
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
 

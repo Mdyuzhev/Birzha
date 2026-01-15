@@ -18,5 +18,11 @@ export const employeesApi = {
   },
   getHistory(id) {
     return client.get(`/employees/${id}/history`)
+  },
+  export(params = {}) {
+    return client.get('/employees/export', {
+      params,
+      responseType: 'blob'
+    })
   }
 }

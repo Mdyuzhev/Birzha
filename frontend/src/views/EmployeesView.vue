@@ -18,6 +18,11 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const editingEmployee = ref(null)
 const selectedEmployee = ref(null)
+const filterDialogVisible = ref(false)
+const activeFilters = ref({})
+const dateConditions = ref({})
+const exportLoading = ref(false)
+const exportDialogVisible = ref(false)
 
 // Пагинация - 4 строки на странице
 const pagination = ref({
@@ -44,13 +49,65 @@ const tableColumns = computed(() => {
   return [...fixed, ...dynamic]
 })
 
+// Вычисление активных полей для фильтрации
+const filterableColumns = computed(() => {
+  const fixed = [
+    { name: 'fullName', displayName: 'ФИО', fieldType: 'TEXT' },
+    { name: 'email', displayName: 'Email', fieldType: 'TEXT' }
+  ]
+  return [...fixed, ...columnsStore.columns]
+})
+
+// Количество активных фильтров
+const activeFilterCount = computed(() => {
+  return Object.values(activeFilters.value).filter(v => v && v.length > 0).length
+})
+
+// Общее количество страниц
+const totalPages = computed(() => {
+  return Math.ceil(pagination.value.total / pagination.value.size)
+})
+
 async function fetchEmployees() {
   loading.value = true
   try {
-    const response = await employeesApi.getAll({
+    const params = {
       page: pagination.value.page,
       size: pagination.value.size
-    })
+    }
+
+    // Добавляем фильтры
+    const customFields = {}
+    const dateFilters = {}
+
+    for (const [key, value] of Object.entries(activeFilters.value)) {
+      if (!value || (Array.isArray(value) && value.length === 0)) continue
+
+      const col = filterableColumns.value.find(c => c.name === key)
+      if (!col) continue
+
+      if (key === 'fullName' || key === 'email') {
+        params[key] = Array.isArray(value) ? value.join(',') : value
+      } else if (col.fieldType === 'DATE') {
+        const condition = dateConditions.value[key] || 'equals'
+        dateFilters[key] = `${condition}:${value}`
+      } else {
+        customFields[key] = Array.isArray(value) ? value.join(',') : value
+      }
+    }
+
+    if (Object.keys(customFields).length > 0) {
+      for (const [k, v] of Object.entries(customFields)) {
+        params[`customFields[${k}]`] = v
+      }
+    }
+    if (Object.keys(dateFilters).length > 0) {
+      for (const [k, v] of Object.entries(dateFilters)) {
+        params[`dateFilters[${k}]`] = v
+      }
+    }
+
+    const response = await employeesApi.getAll(params)
     employees.value = response.data.content || response.data
     pagination.value.total = response.data.totalElements || employees.value.length
   } catch (error) {
@@ -134,6 +191,85 @@ function handleLogout() {
 
 function goToAdmin() {
   router.push('/admin')
+}
+
+function openFilterDialog() {
+  filterDialogVisible.value = true
+}
+
+function applyFilters() {
+  filterDialogVisible.value = false
+  pagination.value.page = 0
+  fetchEmployees()
+}
+
+function clearFilters() {
+  activeFilters.value = {}
+  dateConditions.value = {}
+  filterDialogVisible.value = false
+  pagination.value.page = 0
+  fetchEmployees()
+}
+
+function openExportDialog() {
+  exportDialogVisible.value = true
+}
+
+async function handleExport(exportAll) {
+  exportLoading.value = true
+  exportDialogVisible.value = false
+  try {
+    const params = { all: exportAll }
+
+    if (!exportAll) {
+      // Применяем текущие фильтры
+      for (const [key, value] of Object.entries(activeFilters.value)) {
+        if (!value || (Array.isArray(value) && value.length === 0)) continue
+
+        const col = filterableColumns.value.find(c => c.name === key)
+        if (!col) continue
+
+        if (key === 'fullName' || key === 'email') {
+          params[key] = Array.isArray(value) ? value.join(',') : value
+        } else if (col.fieldType === 'DATE') {
+          const condition = dateConditions.value[key] || 'equals'
+          params[`dateFilters[${key}]`] = `${condition}:${value}`
+        } else {
+          params[`customFields[${key}]`] = Array.isArray(value) ? value.join(',') : value
+        }
+      }
+    }
+
+    const response = await employeesApi.export(params)
+
+    // Скачиваем файл
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+
+    // Извлекаем имя файла из заголовка или генерируем
+    const contentDisposition = response.headers['content-disposition']
+    let filename = 'employees.xlsx'
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (match) filename = match[1].replace(/['"]/g, '')
+    }
+    link.download = filename
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    ElMessage.success('Файл успешно выгружен')
+  } catch (error) {
+    ElMessage.error('Ошибка экспорта')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 onMounted(async () => {
@@ -250,6 +386,19 @@ onMounted(async () => {
           </svg>
           <span>Обновить</span>
         </el-button>
+        <el-button class="btn-filter" :class="{ 'has-filters': activeFilterCount > 0 }" @click="openFilterDialog">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+          </svg>
+          <span>Фильтр</span>
+          <span v-if="activeFilterCount > 0" class="filter-badge">{{ activeFilterCount }}</span>
+        </el-button>
+        <el-button class="btn-export" :loading="exportLoading" @click="openExportDialog">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          <span>Экспорт</span>
+        </el-button>
       </div>
 
       <!-- Table Card -->
@@ -293,17 +442,74 @@ onMounted(async () => {
           </el-table-column>
         </el-table>
 
-        <!-- Pagination -->
+        <!-- Custom Pagination -->
         <div class="pagination-wrapper">
-          <el-pagination
-            v-model:current-page="pagination.page"
-            :page-size="pagination.size"
-            :page-sizes="[4, 8, 12, 20]"
-            :total="pagination.total"
-            layout="total, sizes, prev, pager, next"
-            @current-change="handlePageChange"
-            @size-change="handleSizeChange"
-          />
+          <div class="custom-pagination">
+            <span class="pagination-total">Всего {{ pagination.total }}</span>
+
+            <el-select
+              v-model="pagination.size"
+              class="pagination-size"
+              popper-class="pagination-size-dropdown"
+              @change="handleSizeChange"
+            >
+              <el-option :value="4" label="4 на стр." />
+              <el-option :value="8" label="8 на стр." />
+              <el-option :value="12" label="12 на стр." />
+              <el-option :value="20" label="20 на стр." />
+            </el-select>
+
+            <div class="pagination-pages">
+              <button
+                class="page-btn"
+                :disabled="pagination.page === 0"
+                @click="handlePageChange(pagination.page)"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                </svg>
+              </button>
+
+              <button
+                class="page-btn"
+                :class="{ active: pagination.page === 0 }"
+                @click="handlePageChange(1)"
+              >1</button>
+
+              <button
+                v-if="totalPages > 1"
+                class="page-btn"
+                :class="{ active: pagination.page === 1 }"
+                @click="handlePageChange(2)"
+              >2</button>
+
+              <span v-if="totalPages > 4" class="page-dots">...</span>
+
+              <button
+                v-if="totalPages > 3"
+                class="page-btn"
+                :class="{ active: pagination.page === totalPages - 2 }"
+                @click="handlePageChange(totalPages - 1)"
+              >{{ totalPages - 1 }}</button>
+
+              <button
+                v-if="totalPages > 2"
+                class="page-btn"
+                :class="{ active: pagination.page === totalPages - 1 }"
+                @click="handlePageChange(totalPages)"
+              >{{ totalPages }}</button>
+
+              <button
+                class="page-btn"
+                :disabled="pagination.page >= totalPages - 1"
+                @click="handlePageChange(pagination.page + 2)"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </main>
@@ -314,6 +520,111 @@ onMounted(async () => {
       :employee="editingEmployee"
       @close="handleDialogClose"
     />
+
+    <!-- Filter Dialog -->
+    <el-dialog
+      v-model="filterDialogVisible"
+      title="Фильтры"
+      width="500px"
+      class="filter-dialog"
+    >
+      <div class="filter-form">
+        <div v-for="col in filterableColumns" :key="col.name" class="filter-field">
+          <label class="filter-label">{{ col.displayName }}</label>
+
+          <!-- TEXT и NUMBER поля -->
+          <el-input
+            v-if="col.fieldType === 'TEXT' || col.fieldType === 'NUMBER'"
+            v-model="activeFilters[col.name]"
+            :placeholder="`Введите ${col.displayName.toLowerCase()}`"
+            clearable
+          />
+
+          <!-- SELECT поля с выбором из справочника -->
+          <el-select
+            v-else-if="col.fieldType === 'SELECT'"
+            v-model="activeFilters[col.name]"
+            :placeholder="`Выберите ${col.displayName.toLowerCase()}`"
+            clearable
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+          >
+            <el-option
+              v-for="opt in columnsStore.getDictionaryValues(col.dictionaryId)"
+              :key="opt"
+              :label="opt"
+              :value="opt"
+            />
+          </el-select>
+
+          <!-- DATE поля с условием -->
+          <div v-else-if="col.fieldType === 'DATE'" class="date-filter-group">
+            <el-select
+              v-model="dateConditions[col.name]"
+              placeholder="Условие"
+              class="date-condition"
+            >
+              <el-option label="Равно" value="equals" />
+              <el-option label="Ранее" value="before" />
+              <el-option label="Позже" value="after" />
+            </el-select>
+            <el-date-picker
+              v-model="activeFilters[col.name]"
+              type="date"
+              placeholder="Выберите дату"
+              format="DD.MM.YYYY"
+              value-format="YYYY-MM-DD"
+              class="date-picker"
+            />
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="filter-actions">
+          <el-button @click="clearFilters">Сбросить</el-button>
+          <el-button type="primary" @click="applyFilters">Применить</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- Export Dialog -->
+    <el-dialog
+      v-model="exportDialogVisible"
+      title="Экспорт в Excel"
+      width="400px"
+      class="export-dialog"
+    >
+      <div class="export-options">
+        <p class="export-description">Выберите, какие данные выгрузить:</p>
+        <div class="export-buttons">
+          <el-button
+            type="primary"
+            size="large"
+            @click="handleExport(false)"
+            :disabled="activeFilterCount === 0"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+              <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+            </svg>
+            <span>По фильтру ({{ pagination.total }})</span>
+          </el-button>
+          <el-button
+            size="large"
+            @click="handleExport(true)"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+              <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/>
+            </svg>
+            <span>Все записи</span>
+          </el-button>
+        </div>
+        <p v-if="activeFilterCount === 0" class="export-hint">
+          Для экспорта по фильтру сначала установите фильтры
+        </p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -716,6 +1027,241 @@ onMounted(async () => {
   border-top: 1px solid var(--border-glass);
 }
 
+/* Filter Button */
+.btn-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-glass-strong) !important;
+  color: var(--text-primary) !important;
+  position: relative;
+}
+
+.btn-filter:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+.btn-filter.has-filters {
+  border-color: var(--accent) !important;
+  background: rgba(124, 58, 237, 0.1) !important;
+}
+
+.filter-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Filter Dialog */
+.filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.date-filter-group {
+  display: flex;
+  gap: 8px;
+}
+
+.date-condition {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.date-picker {
+  flex: 1;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Export Button */
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  background: var(--bg-glass) !important;
+  border: 1px solid #10b981 !important;
+  color: #10b981 !important;
+}
+
+.btn-export:hover {
+  background: #10b981 !important;
+  color: white !important;
+}
+
+/* Export Dialog */
+.export-options {
+  text-align: center;
+}
+
+.export-description {
+  margin-bottom: 20px;
+  color: var(--text-secondary);
+}
+
+.export-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: center;
+}
+
+.export-buttons .el-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.export-hint {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Custom Pagination */
+.custom-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.pagination-total {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.pagination-size {
+  width: 120px;
+}
+
+.pagination-size :deep(.el-input__wrapper) {
+  background: rgba(40, 40, 60, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: none !important;
+}
+
+.pagination-size :deep(.el-input__wrapper *) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.pagination-size :deep(.el-input__inner) {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.pagination-size :deep(.el-select__selected-item) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.pagination-size :deep(.el-select__placeholder) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.pagination-size :deep(span) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.pagination-size :deep(.el-select__suffix) {
+  color: #ffffff !important;
+}
+
+.pagination-size :deep(.el-select__caret) {
+  color: #ffffff !important;
+}
+
+.pagination-size :deep(.el-input__suffix-inner) {
+  color: #ffffff !important;
+}
+
+.pagination-size:hover :deep(.el-input__wrapper) {
+  border-color: var(--accent) !important;
+  background: rgba(60, 60, 80, 0.95) !important;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.page-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-dots {
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .app-header {
@@ -741,5 +1287,44 @@ onMounted(async () => {
   .toolbar {
     flex-wrap: wrap;
   }
+}
+</style>
+
+<style>
+/* Global styles for pagination dropdown (outside component tree) */
+.pagination-size-dropdown {
+  background: rgba(30, 30, 50, 0.98) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.pagination-size-dropdown .el-select-dropdown__wrap {
+  border: none !important;
+}
+
+.pagination-size-dropdown .el-select-dropdown__list {
+  padding: 6px !important;
+}
+
+.pagination-size-dropdown .el-select-dropdown__item {
+  color: white !important;
+  border-radius: 4px;
+}
+
+.pagination-size-dropdown .el-select-dropdown__item:hover,
+.pagination-size-dropdown .el-select-dropdown__item.hover {
+  background: rgba(124, 58, 237, 0.3) !important;
+}
+
+.pagination-size-dropdown .el-select-dropdown__item.selected {
+  color: #a78bfa !important;
+  font-weight: 600;
+  background: rgba(124, 58, 237, 0.2) !important;
+}
+
+.pagination-size-dropdown .el-popper__arrow {
+  display: none !important;
 }
 </style>
