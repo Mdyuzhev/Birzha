@@ -620,93 +620,91 @@ onMounted(fetchData)
               </div>
 
               <!-- Department Content -->
-              <div v-if="analyticsMode === 'dept' && statistics.byDepartment" class="analytics-content-full">
-                <!-- Back button when selected -->
-                <div v-if="selectedDept" class="detail-header-full">
-                  <button class="back-btn-small" @click="selectedDept = null">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-                    </svg>
-                  </button>
-                  <h4>{{ selectedDept }}</h4>
-                </div>
-
-                <!-- Cards grid when nothing selected -->
-                <div v-if="!selectedDept" class="cards-grid">
+              <div v-if="analyticsMode === 'dept' && statistics.byDepartment" class="analytics-two-col">
+                <!-- Left: List -->
+                <div class="analytics-list">
                   <div
-                    v-for="item in getChartData(statistics.byDepartment)"
-                    :key="item.name"
-                    class="stat-card-item"
-                    @click="selectDepartment(item.name)"
+                    v-for="(boxes, dept) in statistics.byDepartment"
+                    :key="dept"
+                    class="analytics-list-item"
+                    :class="{ active: selectedDept === dept }"
+                    @click="selectDepartment(dept)"
                   >
-                    <div class="stat-card-value">{{ item.total }}</div>
-                    <div class="stat-card-label">{{ item.name }}</div>
-                    <div class="stat-card-bar">
-                      <div
-                        class="stat-card-bar-fill"
-                        :style="{ width: (item.total / getMaxBarValue(statistics.byDepartment) * 100) + '%' }"
-                      ></div>
-                    </div>
+                    <span class="item-name">{{ dept }}</span>
+                    <span class="item-count">{{ Object.values(boxes).reduce((a, b) => a + b, 0) }}</span>
                   </div>
                 </div>
 
-                <!-- Box grid when department selected -->
-                <div v-else class="box-grid-full">
-                  <div
-                    v-for="box in [7, 8, 9, 4, 5, 6, 1, 2, 3]"
-                    :key="box"
-                    class="box-detail-item-full"
-                    :class="{ empty: !getSelectedDeptData()?.[box] }"
-                    :style="{ '--box-color': boxColors[box] }"
-                  >
-                    <span class="box-detail-count-full">{{ getSelectedDeptData()?.[box] || 0 }}</span>
-                    <span class="box-detail-name-full">{{ boxNames[box] }}</span>
+                <!-- Right: Matrix -->
+                <div class="analytics-matrix">
+                  <div v-if="selectedDept" class="matrix-header">
+                    <h4>{{ selectedDept }}</h4>
+                    <button class="close-btn" @click="selectedDept = null">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div v-else class="matrix-header">
+                    <h4>Выберите подразделение</h4>
+                  </div>
+
+                  <div class="box-grid-matrix">
+                    <div
+                      v-for="box in [7, 8, 9, 4, 5, 6, 1, 2, 3]"
+                      :key="box"
+                      class="box-matrix-item"
+                      :class="{ empty: !selectedDept || !getSelectedDeptData()?.[box] }"
+                      :style="{ '--box-color': boxColors[box] }"
+                    >
+                      <span class="box-matrix-count">{{ selectedDept ? (getSelectedDeptData()?.[box] || 0) : '-' }}</span>
+                      <span class="box-matrix-name">{{ boxNames[box] }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <!-- Position Content -->
-              <div v-if="analyticsMode === 'pos' && statistics.byPosition" class="analytics-content-full">
-                <!-- Back button when selected -->
-                <div v-if="selectedPos" class="detail-header-full">
-                  <button class="back-btn-small" @click="selectedPos = null">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-                    </svg>
-                  </button>
-                  <h4>{{ selectedPos }}</h4>
-                </div>
-
-                <!-- Cards grid when nothing selected -->
-                <div v-if="!selectedPos" class="cards-grid">
+              <div v-if="analyticsMode === 'pos' && statistics.byPosition" class="analytics-two-col">
+                <!-- Left: List -->
+                <div class="analytics-list">
                   <div
-                    v-for="item in getChartData(statistics.byPosition)"
-                    :key="item.name"
-                    class="stat-card-item"
-                    @click="selectPosition(item.name)"
+                    v-for="(boxes, pos) in statistics.byPosition"
+                    :key="pos"
+                    class="analytics-list-item"
+                    :class="{ active: selectedPos === pos }"
+                    @click="selectPosition(pos)"
                   >
-                    <div class="stat-card-value">{{ item.total }}</div>
-                    <div class="stat-card-label">{{ item.name }}</div>
-                    <div class="stat-card-bar">
-                      <div
-                        class="stat-card-bar-fill"
-                        :style="{ width: (item.total / getMaxBarValue(statistics.byPosition) * 100) + '%' }"
-                      ></div>
-                    </div>
+                    <span class="item-name">{{ pos }}</span>
+                    <span class="item-count">{{ Object.values(boxes).reduce((a, b) => a + b, 0) }}</span>
                   </div>
                 </div>
 
-                <!-- Box grid when position selected -->
-                <div v-else class="box-grid-full">
-                  <div
-                    v-for="box in [7, 8, 9, 4, 5, 6, 1, 2, 3]"
-                    :key="box"
-                    class="box-detail-item-full"
-                    :class="{ empty: !getSelectedPosData()?.[box] }"
-                    :style="{ '--box-color': boxColors[box] }"
-                  >
-                    <span class="box-detail-count-full">{{ getSelectedPosData()?.[box] || 0 }}</span>
-                    <span class="box-detail-name-full">{{ boxNames[box] }}</span>
+                <!-- Right: Matrix -->
+                <div class="analytics-matrix">
+                  <div v-if="selectedPos" class="matrix-header">
+                    <h4>{{ selectedPos }}</h4>
+                    <button class="close-btn" @click="selectedPos = null">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div v-else class="matrix-header">
+                    <h4>Выберите должность</h4>
+                  </div>
+
+                  <div class="box-grid-matrix">
+                    <div
+                      v-for="box in [7, 8, 9, 4, 5, 6, 1, 2, 3]"
+                      :key="box"
+                      class="box-matrix-item"
+                      :class="{ empty: !selectedPos || !getSelectedPosData()?.[box] }"
+                      :style="{ '--box-color': boxColors[box] }"
+                    >
+                      <span class="box-matrix-count">{{ selectedPos ? (getSelectedPosData()?.[box] || 0) : '-' }}</span>
+                      <span class="box-matrix-name">{{ boxNames[box] }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1389,31 +1387,83 @@ onMounted(fetchData)
   box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
 }
 
-.analytics-content-full {
-  min-height: 300px;
+/* Two Column Layout */
+.analytics-two-col {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  min-height: 400px;
 }
 
-.detail-header-full {
+.analytics-list {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  overflow-y: auto;
 }
 
-.detail-header-full h4 {
+.analytics-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(30, 30, 50, 0.6);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.analytics-list-item:hover {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.analytics-list-item.active {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.4), rgba(168, 85, 247, 0.3));
+  border-color: #a855f7;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.5);
+}
+
+.analytics-list-item .item-name {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.analytics-list-item .item-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: #a855f7;
+}
+
+.analytics-matrix {
+  display: flex;
+  flex-direction: column;
+}
+
+.matrix-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.matrix-header h4 {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.back-btn-small {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+.close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
+  color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1421,78 +1471,25 @@ onMounted(fetchData)
   transition: all 0.2s;
 }
 
-.back-btn-small:hover {
-  background: var(--accent);
-  border-color: var(--accent);
+.close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
-/* Cards Grid */
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-}
-
-.stat-card-item {
-  background: rgba(30, 30, 50, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.stat-card-item:hover {
-  background: rgba(124, 58, 237, 0.2);
-  border-color: rgba(168, 85, 247, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.2);
-}
-
-.stat-card-value {
-  font-size: 32px;
-  font-weight: 800;
-  color: #a855f7;
-  margin-bottom: 4px;
-}
-
-.stat-card-label {
-  font-size: 13px;
-  color: var(--text-primary);
-  margin-bottom: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stat-card-bar {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.stat-card-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #7c3aed, #a855f7);
-  border-radius: 3px;
-  transition: width 0.4s ease;
-}
-
-/* Full Box Grid */
-.box-grid-full {
+/* Box Grid Matrix */
+.box-grid-matrix {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  max-width: 600px;
+  flex: 1;
 }
 
-.box-detail-item-full {
+.box-matrix-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 20px 12px;
   background: color-mix(in srgb, var(--box-color) 50%, rgba(20, 20, 40, 0.8));
   border: 2px solid var(--box-color);
   border-radius: 14px;
@@ -1500,25 +1497,26 @@ onMounted(fetchData)
   box-shadow: 0 4px 24px color-mix(in srgb, var(--box-color) 40%, transparent);
 }
 
-.box-detail-item-full.empty {
-  background: color-mix(in srgb, var(--box-color) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--box-color) 25%, transparent);
+.box-matrix-item.empty {
+  background: color-mix(in srgb, var(--box-color) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--box-color) 20%, transparent);
   box-shadow: none;
   opacity: 0.5;
 }
 
-.box-detail-item-full:not(.empty):hover {
-  transform: scale(1.03);
+.box-matrix-item:not(.empty):hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--box-color) 50%, transparent);
 }
 
-.box-detail-count-full {
-  font-size: 36px;
+.box-matrix-count {
+  font-size: 32px;
   font-weight: 800;
   color: var(--box-color);
 }
 
-.box-detail-name-full {
-  font-size: 12px;
+.box-matrix-name {
+  font-size: 11px;
   color: var(--text-secondary);
   text-align: center;
   margin-top: 8px;
