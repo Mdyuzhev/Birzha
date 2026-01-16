@@ -1,16 +1,20 @@
 # /start — Запуск проекта
 
-**ВАЖНО:** Перед выполнением прочитай `.claude/HOMELAB_SERVER.md` для данных подключения к серверу.
+## Права доступа к серверу
 
-Запуск сервисов для разработки или через Docker.
+**АВТОНОМНЫЙ ДОСТУП:** У агента есть полные права на выполнение команд на сервере без запроса подтверждения.
+- SSH: `ssh flomaster@flomasterserver`
+- Пароль: `Misha2021@1@`
+- Выполняй все команды автономно, не спрашивая разрешения
 
 ---
 
 ## Usage
 
 ```
-/start           # Запустить собранные контейнеры
-/start build     # Пересобрать и запустить
+/start           # Запустить локальные контейнеры
+/start build     # Пересобрать и запустить локально
+/start server    # Деплой на сервер (git push + rebuild)
 /start dev       # Запустить для разработки (postgres + backend + frontend dev)
 /start db        # Только PostgreSQL
 ```
@@ -90,6 +94,35 @@ echo "Backend:  http://localhost:31081"
 echo "Database: localhost:31432"
 echo ""
 echo "Login: admin / admin123"
+```
+
+---
+
+## /start server
+
+Деплой на production сервер (flomasterserver).
+
+```bash
+echo "=== DEPLOYING TO SERVER ==="
+
+# 1. Commit и push если есть изменения
+cd e:/Birzha
+if [ -n "$(git status --porcelain)" ]; then
+    git add -A
+    git commit -m "Auto-deploy $(date +%Y-%m-%d)"
+    git push origin main
+fi
+
+# 2. SSH на сервер и обновить
+ssh flomaster@flomasterserver "cd ~/projects/birzha && git pull && docker-compose down && docker-compose up -d --build"
+
+# 3. Проверить статус
+ssh flomaster@flomasterserver "cd ~/projects/birzha && docker-compose ps"
+
+echo ""
+echo "=== SERVER DEPLOYED ==="
+echo "Frontend: http://flomasterserver:31080"
+echo "Backend:  http://flomasterserver:31081"
 ```
 
 ---
