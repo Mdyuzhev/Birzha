@@ -7,7 +7,8 @@
 ## Usage
 
 ```
-/start           # Запустить всё через docker-compose
+/start           # Запустить собранные контейнеры
+/start build     # Пересобрать и запустить
 /start dev       # Запустить для разработки (postgres + backend + frontend dev)
 /start db        # Только PostgreSQL
 ```
@@ -19,15 +20,12 @@
 ```bash
 echo "=== STARTING ALL SERVICES ==="
 
-# Остановить если запущено
-docker-compose down 2>/dev/null
-
-# Запустить
-docker-compose up -d --build
+# Запустить (без пересборки)
+docker-compose up -d
 
 # Подождать готовности
 echo "Waiting for services..."
-sleep 10
+sleep 5
 
 # Проверить статус
 docker-compose ps
@@ -56,6 +54,32 @@ if curl -s http://localhost:31080 > /dev/null 2>&1; then
 else
     echo "⏳ Frontend: starting..."
 fi
+
+echo ""
+echo "=== ACCESS ==="
+echo "Frontend: http://localhost:31080"
+echo "Backend:  http://localhost:31081"
+echo "Database: localhost:31432"
+echo ""
+echo "Login: admin / admin123"
+```
+
+---
+
+## /start build
+
+```bash
+echo "=== BUILDING AND STARTING ALL SERVICES ==="
+
+# Пересобрать и запустить
+docker-compose up -d --build
+
+# Подождать готовности
+echo "Waiting for services..."
+sleep 10
+
+# Проверить статус
+docker-compose ps
 
 echo ""
 echo "=== ACCESS ==="

@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/theme'
 import { useColumnsStore } from '@/stores/columns'
 import { useNotificationsStore } from '@/stores/notifications'
 import { employeesApi } from '@/api/employees'
+import { columnPresetsApi } from '@/api/columnPresets'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmployeeDialog from '@/components/EmployeeDialog.vue'
 import draggable from 'vuedraggable'
@@ -31,6 +32,12 @@ const columnSettings = ref([])
 const historyDialogVisible = ref(false)
 const historyLoading = ref(false)
 const historyItems = ref([])
+
+// Борды (пресеты колонок)
+const presets = ref([])
+const selectedPresetId = ref(null)
+const newPresetName = ref('')
+const presetsLoading = ref(false)
 
 // Пагинация - 4 строки на странице
 const pagination = ref({
@@ -110,12 +117,117 @@ function saveColumnSettings() {
 function openColumnsSettings() {
   // Синхронизируем с текущими колонками перед открытием
   initColumnSettings()
+  fetchPresets()
   columnsSettingsVisible.value = true
 }
 
 function getColumnLabel(prop) {
   const col = allColumns.value.find(c => c.prop === prop)
   return col?.label || prop
+}
+
+// Функции для работы с бордами
+async function fetchPresets() {
+  presetsLoading.value = true
+  try {
+    const response = await columnPresetsApi.getAll()
+    presets.value = response.data
+  } catch (error) {
+    console.error('Error fetching presets:', error)
+  } finally {
+    presetsLoading.value = false
+  }
+}
+
+async function loadPreset(preset) {
+  selectedPresetId.value = preset.id
+  columnSettings.value = preset.columnConfig.map(c => ({
+    prop: c.prop,
+    visible: c.visible
+  }))
+  // Добавляем новые колонки, которых нет в пресете
+  const savedProps = columnSettings.value.map(s => s.prop)
+  const newColumns = allColumns.value
+    .filter(c => !savedProps.includes(c.prop))
+    .map(c => ({ prop: c.prop, visible: true }))
+  columnSettings.value = [...columnSettings.value, ...newColumns]
+  ElMessage.success(`Борд "${preset.name}" загружен`)
+}
+
+async function saveAsPreset() {
+  if (!newPresetName.value.trim()) {
+    ElMessage.warning('Введите название борда')
+    return
+  }
+
+  try {
+    const data = {
+      name: newPresetName.value.trim(),
+      columnConfig: columnSettings.value.map(c => ({
+        prop: c.prop,
+        visible: c.visible
+      })),
+      isDefault: false
+    }
+
+    await columnPresetsApi.create(data)
+    ElMessage.success(`Борд "${newPresetName.value}" сохранён`)
+    newPresetName.value = ''
+    await fetchPresets()
+  } catch (error) {
+    const message = error.response?.data?.message || 'Ошибка сохранения'
+    ElMessage.error(message)
+  }
+}
+
+async function updatePreset(preset) {
+  try {
+    const data = {
+      name: preset.name,
+      columnConfig: columnSettings.value.map(c => ({
+        prop: c.prop,
+        visible: c.visible
+      })),
+      isDefault: preset.isDefault
+    }
+
+    await columnPresetsApi.update(preset.id, data)
+    ElMessage.success(`Борд "${preset.name}" обновлён`)
+    await fetchPresets()
+  } catch (error) {
+    const message = error.response?.data?.message || 'Ошибка обновления'
+    ElMessage.error(message)
+  }
+}
+
+async function deletePreset(preset) {
+  try {
+    await ElMessageBox.confirm(
+      `Удалить борд "${preset.name}"?`,
+      'Подтверждение',
+      { type: 'warning' }
+    )
+    await columnPresetsApi.delete(preset.id)
+    ElMessage.success('Борд удалён')
+    if (selectedPresetId.value === preset.id) {
+      selectedPresetId.value = null
+    }
+    await fetchPresets()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('Ошибка удаления')
+    }
+  }
+}
+
+async function setDefaultPreset(preset) {
+  try {
+    await columnPresetsApi.setDefault(preset.id)
+    ElMessage.success(`Борд "${preset.name}" установлен по умолчанию`)
+    await fetchPresets()
+  } catch (error) {
+    ElMessage.error('Ошибка установки по умолчанию')
+  }
 }
 
 // Вычисление активных полей для фильтрации
@@ -774,9 +886,87 @@ onUnmounted(() => {
     <el-dialog
       v-model="columnsSettingsVisible"
       title="Настройка колонок"
-      width="450px"
+      width="550px"
       class="columns-settings-dialog"
     >
+      <!-- Борды (пресеты) -->
+      <div class="presets-section">
+        <div class="presets-header">
+          <span class="presets-title">Сохранённые борды</span>
+          <el-button size="small" text :loading="presetsLoading" @click="fetchPresets">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+          </el-button>
+        </div>
+
+        <div v-if="presets.length > 0" class="presets-list">
+          <div
+            v-for="preset in presets"
+            :key="preset.id"
+            class="preset-item"
+            :class="{ 'preset-active': selectedPresetId === preset.id }"
+          >
+            <div class="preset-info" @click="loadPreset(preset)">
+              <span class="preset-name">{{ preset.name }}</span>
+              <span v-if="preset.isDefault" class="preset-default-badge">По умолчанию</span>
+            </div>
+            <div class="preset-actions">
+              <el-button
+                size="small"
+                text
+                title="Обновить текущими настройками"
+                @click.stop="updatePreset(preset)"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                </svg>
+              </el-button>
+              <el-button
+                v-if="!preset.isDefault"
+                size="small"
+                text
+                title="Сделать по умолчанию"
+                @click.stop="setDefaultPreset(preset)"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                </svg>
+              </el-button>
+              <el-button
+                size="small"
+                text
+                type="danger"
+                title="Удалить"
+                @click.stop="deletePreset(preset)"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </el-button>
+            </div>
+          </div>
+        </div>
+        <div v-else class="presets-empty">
+          Нет сохранённых бордов
+        </div>
+
+        <!-- Сохранить новый борд -->
+        <div class="save-preset-form">
+          <el-input
+            v-model="newPresetName"
+            placeholder="Название нового борда"
+            size="small"
+            @keyup.enter="saveAsPreset"
+          />
+          <el-button type="primary" size="small" @click="saveAsPreset" :disabled="!newPresetName.trim()">
+            Сохранить как борд
+          </el-button>
+        </div>
+      </div>
+
+      <el-divider />
+
       <p class="columns-hint">Перетащите для изменения порядка. Чем выше — тем левее в таблице.</p>
       <draggable
         v-model="columnSettings"
@@ -1754,6 +1944,113 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+/* Presets Section */
+.presets-section {
+  margin-bottom: 8px;
+}
+
+.presets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.presets-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.presets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.preset-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(30, 30, 50, 0.6);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preset-item:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(40, 40, 60, 0.8);
+}
+
+.preset-item.preset-active {
+  border-color: var(--accent);
+  background: rgba(124, 58, 237, 0.15);
+}
+
+.preset-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.preset-name {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.preset-default-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #10b981, #34d399);
+  color: white;
+  font-weight: 600;
+}
+
+.preset-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.preset-actions .el-button {
+  padding: 4px 6px !important;
+  color: var(--text-muted) !important;
+}
+
+.preset-actions .el-button:hover {
+  color: var(--accent) !important;
+}
+
+.preset-actions .el-button--danger:hover {
+  color: var(--danger) !important;
+}
+
+.presets-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 16px;
+  background: rgba(30, 30, 50, 0.4);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.save-preset-form {
+  display: flex;
+  gap: 10px;
+}
+
+.save-preset-form .el-input {
+  flex: 1;
 }
 </style>
 
