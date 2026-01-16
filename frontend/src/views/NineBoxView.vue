@@ -18,6 +18,9 @@ const searchQuery = ref('')
 const selectedEmployee = ref(null)
 const currentAssessment = ref(null)
 const activeTab = ref('matrix')
+const analyticsMode = ref('dept') // 'dept' or 'pos'
+const selectedDept = ref(null)
+const selectedPos = ref(null)
 
 // Form
 const form = ref({
@@ -199,6 +202,83 @@ function goBack() {
 function formatDate(dateStr) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString('ru-RU')
+}
+
+// Chart data helpers
+function getChartData(data) {
+  if (!data) return []
+  return Object.entries(data).map(([name, boxes]) => {
+    const total = Object.values(boxes).reduce((sum, count) => sum + count, 0)
+    return { name, boxes, total }
+  }).sort((a, b) => b.total - a.total)
+}
+
+function getPieSlices(data) {
+  const chartData = getChartData(data)
+  const total = chartData.reduce((sum, item) => sum + item.total, 0)
+  if (total === 0) return []
+
+  let currentAngle = 0
+  const slices = []
+  const colors = ['#7c3aed', '#3b82f6', '#22c55e', '#eab308', '#f97316', '#ef4444', '#ec4899', '#06b6d4', '#84cc16']
+
+  chartData.forEach((item, index) => {
+    const angle = (item.total / total) * 360
+    const startAngle = currentAngle
+    const endAngle = currentAngle + angle
+
+    // SVG arc calculation
+    const startRad = (startAngle - 90) * Math.PI / 180
+    const endRad = (endAngle - 90) * Math.PI / 180
+    const largeArc = angle > 180 ? 1 : 0
+
+    const x1 = 100 + 80 * Math.cos(startRad)
+    const y1 = 100 + 80 * Math.sin(startRad)
+    const x2 = 100 + 80 * Math.cos(endRad)
+    const y2 = 100 + 80 * Math.sin(endRad)
+
+    // Label position (middle of slice)
+    const midRad = ((startAngle + endAngle) / 2 - 90) * Math.PI / 180
+    const labelX = 100 + 50 * Math.cos(midRad)
+    const labelY = 100 + 50 * Math.sin(midRad)
+
+    slices.push({
+      name: item.name,
+      total: item.total,
+      percent: Math.round((item.total / total) * 100),
+      color: colors[index % colors.length],
+      path: `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`,
+      labelX,
+      labelY
+    })
+
+    currentAngle = endAngle
+  })
+
+  return slices
+}
+
+function getMaxBarValue(data) {
+  const chartData = getChartData(data)
+  return Math.max(...chartData.map(d => d.total), 1)
+}
+
+function selectDepartment(dept) {
+  selectedDept.value = selectedDept.value === dept ? null : dept
+}
+
+function selectPosition(pos) {
+  selectedPos.value = selectedPos.value === pos ? null : pos
+}
+
+function getSelectedDeptData() {
+  if (!selectedDept.value || !statistics.value?.byDepartment) return null
+  return statistics.value.byDepartment[selectedDept.value]
+}
+
+function getSelectedPosData() {
+  if (!selectedPos.value || !statistics.value?.byPosition) return null
+  return statistics.value.byPosition[selectedPos.value]
 }
 
 onMounted(fetchData)
@@ -520,39 +600,113 @@ onMounted(fetchData)
               </div>
             </div>
 
-            <!-- By Department -->
-            <div v-if="statistics.byDepartment && Object.keys(statistics.byDepartment).length > 0" class="analytics-block">
-              <h3>По подразделениям</h3>
-              <div class="dept-list">
-                <div v-for="(boxes, dept) in statistics.byDepartment" :key="dept" class="dept-item">
-                  <div class="dept-name">{{ dept }}</div>
-                  <div class="dept-boxes">
-                    <span
-                      v-for="(count, box) in boxes"
-                      :key="box"
-                      class="dept-box"
-                      :style="{ background: boxColors[box] }"
-                      :title="boxNames[box]"
-                    >{{ count }}</span>
+            <!-- Analytics Tabs -->
+            <div class="analytics-tabs-block">
+              <div class="analytics-tabs">
+                <button
+                  class="analytics-tab"
+                  :class="{ active: analyticsMode === 'dept' }"
+                  @click="analyticsMode = 'dept'; selectedDept = null"
+                >
+                  По подразделениям
+                </button>
+                <button
+                  class="analytics-tab"
+                  :class="{ active: analyticsMode === 'pos' }"
+                  @click="analyticsMode = 'pos'; selectedPos = null"
+                >
+                  По должностям
+                </button>
+              </div>
+
+              <!-- Department Content -->
+              <div v-if="analyticsMode === 'dept' && statistics.byDepartment" class="analytics-content-full">
+                <!-- Back button when selected -->
+                <div v-if="selectedDept" class="detail-header-full">
+                  <button class="back-btn-small" @click="selectedDept = null">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                  </button>
+                  <h4>{{ selectedDept }}</h4>
+                </div>
+
+                <!-- Cards grid when nothing selected -->
+                <div v-if="!selectedDept" class="cards-grid">
+                  <div
+                    v-for="item in getChartData(statistics.byDepartment)"
+                    :key="item.name"
+                    class="stat-card-item"
+                    @click="selectDepartment(item.name)"
+                  >
+                    <div class="stat-card-value">{{ item.total }}</div>
+                    <div class="stat-card-label">{{ item.name }}</div>
+                    <div class="stat-card-bar">
+                      <div
+                        class="stat-card-bar-fill"
+                        :style="{ width: (item.total / getMaxBarValue(statistics.byDepartment) * 100) + '%' }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Box grid when department selected -->
+                <div v-else class="box-grid-full">
+                  <div
+                    v-for="box in [7, 8, 9, 4, 5, 6, 1, 2, 3]"
+                    :key="box"
+                    class="box-detail-item-full"
+                    :class="{ empty: !getSelectedDeptData()?.[box] }"
+                    :style="{ '--box-color': boxColors[box] }"
+                  >
+                    <span class="box-detail-count-full">{{ getSelectedDeptData()?.[box] || 0 }}</span>
+                    <span class="box-detail-name-full">{{ boxNames[box] }}</span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- By Position -->
-            <div v-if="statistics.byPosition && Object.keys(statistics.byPosition).length > 0" class="analytics-block">
-              <h3>По должностям</h3>
-              <div class="dept-list">
-                <div v-for="(boxes, pos) in statistics.byPosition" :key="pos" class="dept-item">
-                  <div class="dept-name">{{ pos }}</div>
-                  <div class="dept-boxes">
-                    <span
-                      v-for="(count, box) in boxes"
-                      :key="box"
-                      class="dept-box"
-                      :style="{ background: boxColors[box] }"
-                      :title="boxNames[box]"
-                    >{{ count }}</span>
+              <!-- Position Content -->
+              <div v-if="analyticsMode === 'pos' && statistics.byPosition" class="analytics-content-full">
+                <!-- Back button when selected -->
+                <div v-if="selectedPos" class="detail-header-full">
+                  <button class="back-btn-small" @click="selectedPos = null">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                  </button>
+                  <h4>{{ selectedPos }}</h4>
+                </div>
+
+                <!-- Cards grid when nothing selected -->
+                <div v-if="!selectedPos" class="cards-grid">
+                  <div
+                    v-for="item in getChartData(statistics.byPosition)"
+                    :key="item.name"
+                    class="stat-card-item"
+                    @click="selectPosition(item.name)"
+                  >
+                    <div class="stat-card-value">{{ item.total }}</div>
+                    <div class="stat-card-label">{{ item.name }}</div>
+                    <div class="stat-card-bar">
+                      <div
+                        class="stat-card-bar-fill"
+                        :style="{ width: (item.total / getMaxBarValue(statistics.byPosition) * 100) + '%' }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Box grid when position selected -->
+                <div v-else class="box-grid-full">
+                  <div
+                    v-for="box in [7, 8, 9, 4, 5, 6, 1, 2, 3]"
+                    :key="box"
+                    class="box-detail-item-full"
+                    :class="{ empty: !getSelectedPosData()?.[box] }"
+                    :style="{ '--box-color': boxColors[box] }"
+                  >
+                    <span class="box-detail-count-full">{{ getSelectedPosData()?.[box] || 0 }}</span>
+                    <span class="box-detail-name-full">{{ boxNames[box] }}</span>
                   </div>
                 </div>
               </div>
@@ -1198,17 +1352,177 @@ onMounted(fetchData)
   gap: 4px;
 }
 
-.dept-box {
-  min-width: 24px;
-  height: 24px;
-  padding: 0 6px;
-  border-radius: 4px;
-  color: white;
-  font-size: 12px;
+/* Analytics Tabs Block */
+.analytics-tabs-block {
+  margin-top: 24px;
+}
+
+.analytics-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.analytics-tab {
+  flex: 1;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(30, 30, 50, 0.6);
+  color: var(--text-secondary);
+  font-size: 15px;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.analytics-tab:hover {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--text-primary);
+}
+
+.analytics-tab.active {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.4), rgba(168, 85, 247, 0.3));
+  border-color: #a855f7;
+  color: white;
+  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
+}
+
+.analytics-content-full {
+  min-height: 300px;
+}
+
+.detail-header-full {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.detail-header-full h4 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.back-btn-small {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
+}
+
+.back-btn-small:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Cards Grid */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.stat-card-item {
+  background: rgba(30, 30, 50, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stat-card-item:hover {
+  background: rgba(124, 58, 237, 0.2);
+  border-color: rgba(168, 85, 247, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.2);
+}
+
+.stat-card-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: #a855f7;
+  margin-bottom: 4px;
+}
+
+.stat-card-label {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-card-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stat-card-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* Full Box Grid */
+.box-grid-full {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 600px;
+}
+
+.box-detail-item-full {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: color-mix(in srgb, var(--box-color) 50%, rgba(20, 20, 40, 0.8));
+  border: 2px solid var(--box-color);
+  border-radius: 14px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 24px color-mix(in srgb, var(--box-color) 40%, transparent);
+}
+
+.box-detail-item-full.empty {
+  background: color-mix(in srgb, var(--box-color) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--box-color) 25%, transparent);
+  box-shadow: none;
+  opacity: 0.5;
+}
+
+.box-detail-item-full:not(.empty):hover {
+  transform: scale(1.03);
+}
+
+.box-detail-count-full {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--box-color);
+}
+
+.box-detail-name-full {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 8px;
+  line-height: 1.3;
 }
 
 /* Responsive */
