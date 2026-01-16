@@ -16,6 +16,8 @@ const searchQuery = ref('')
 const selectedResume = ref(null)
 const dialogVisible = ref(false)
 const editMode = ref(false)
+const viewDialogVisible = ref(false)
+const viewingResume = ref(null)
 
 // Form data
 const form = ref({
@@ -74,6 +76,11 @@ function openCreateDialog() {
   editMode.value = false
   resetForm()
   dialogVisible.value = true
+}
+
+function openViewDialog(resume) {
+  viewingResume.value = resume
+  viewDialogVisible.value = true
 }
 
 function openEditDialog(resume) {
@@ -282,7 +289,7 @@ const employeesWithoutResume = computed(() => {
         <el-button type="primary" @click="openCreateDialog">Создать первое резюме</el-button>
       </div>
 
-      <div v-for="resume in resumes" :key="resume.id" class="resume-card glass-card">
+      <div v-for="resume in resumes" :key="resume.id" class="resume-card glass-card" @click="openViewDialog(resume)">
         <div class="resume-header">
           <div class="avatar">
             {{ resume.employeeName?.charAt(0) || '?' }}
@@ -307,7 +314,7 @@ const employeesWithoutResume = computed(() => {
           </div>
         </div>
 
-        <div class="resume-actions">
+        <div class="resume-actions" @click.stop>
           <el-button size="small" @click="openEditDialog(resume)">
             <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
               <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
@@ -491,6 +498,115 @@ const employeesWithoutResume = computed(() => {
         <el-button type="primary" @click="saveResume">Сохранить</el-button>
       </template>
     </el-dialog>
+
+    <!-- View Dialog -->
+    <el-dialog
+      v-model="viewDialogVisible"
+      :title="viewingResume?.employeeName || 'Просмотр резюме'"
+      width="800px"
+      class="view-dialog"
+      destroy-on-close
+    >
+      <div v-if="viewingResume" class="resume-view">
+        <!-- Header -->
+        <div class="view-header">
+          <div class="view-avatar">
+            {{ viewingResume.employeeName?.charAt(0) || '?' }}
+          </div>
+          <div class="view-info">
+            <h2>{{ viewingResume.employeeName }}</h2>
+            <p class="view-position">{{ viewingResume.position || 'Должность не указана' }}</p>
+            <p class="view-email">{{ viewingResume.employeeEmail }}</p>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div v-if="viewingResume.summary" class="view-section">
+          <h3>О себе</h3>
+          <p>{{ viewingResume.summary }}</p>
+        </div>
+
+        <!-- Skills -->
+        <div v-if="viewingResume.skills?.length" class="view-section">
+          <h3>Ключевые навыки</h3>
+          <div class="view-skills">
+            <div v-for="(skill, idx) in viewingResume.skills" :key="idx" class="view-skill">
+              <span class="skill-name">{{ skill.name }}</span>
+              <span class="skill-level">{{ skill.level }}</span>
+              <span v-if="skill.years" class="skill-years">{{ skill.years }} лет</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Experience -->
+        <div v-if="viewingResume.experience?.length" class="view-section">
+          <h3>Опыт работы</h3>
+          <div v-for="(exp, idx) in viewingResume.experience" :key="idx" class="view-experience">
+            <div class="exp-company">{{ exp.company }}</div>
+            <div class="exp-position-date">
+              <span>{{ exp.position }}</span>
+              <span class="exp-period">{{ exp.startDate }} - {{ exp.endDate || 'по настоящее время' }}</span>
+            </div>
+            <p v-if="exp.description" class="exp-description">{{ exp.description }}</p>
+            <div v-if="exp.projects?.length" class="exp-projects-view">
+              <strong>Проекты:</strong>
+              <ul>
+                <li v-for="(proj, pidx) in exp.projects" :key="pidx">
+                  <strong>{{ proj.name }}</strong>
+                  <span v-if="proj.description">: {{ proj.description }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Education -->
+        <div v-if="viewingResume.education?.length" class="view-section">
+          <h3>Образование</h3>
+          <div v-for="(edu, idx) in viewingResume.education" :key="idx" class="view-education">
+            <div class="edu-institution">{{ edu.institution }} <span v-if="edu.year">({{ edu.year }})</span></div>
+            <div class="edu-degree">{{ edu.degree }}<span v-if="edu.field">, {{ edu.field }}</span></div>
+          </div>
+        </div>
+
+        <!-- Certifications -->
+        <div v-if="viewingResume.certifications?.length" class="view-section">
+          <h3>Сертификаты</h3>
+          <div v-for="(cert, idx) in viewingResume.certifications" :key="idx" class="view-cert">
+            <span class="cert-name">{{ cert.name }}</span>
+            <span v-if="cert.issuer" class="cert-issuer">{{ cert.issuer }}</span>
+            <span v-if="cert.year" class="cert-year">({{ cert.year }})</span>
+          </div>
+        </div>
+
+        <!-- Languages -->
+        <div v-if="viewingResume.languages?.length" class="view-section">
+          <h3>Языки</h3>
+          <div class="view-languages">
+            <div v-for="(lang, idx) in viewingResume.languages" :key="idx" class="view-lang">
+              <span class="lang-name">{{ lang.language }}</span>
+              <span class="lang-level">{{ lang.level }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="viewDialogVisible = false">Закрыть</el-button>
+        <el-button type="primary" @click="exportPdf(viewingResume)">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" style="margin-right: 6px;">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Скачать PDF
+        </el-button>
+        <el-button type="warning" @click="viewDialogVisible = false; openEditDialog(viewingResume)">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" style="margin-right: 6px;">
+            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+          </svg>
+          Редактировать
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -666,18 +782,28 @@ const employeesWithoutResume = computed(() => {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Dialog Styles */
-.resume-dialog :deep(.el-dialog) {
-  background: #1a1a2e;
+/* Dialog Styles - 95% opacity for better readability */
+.resume-dialog :deep(.el-dialog),
+.view-dialog :deep(.el-dialog) {
+  background: rgba(26, 26, 46, 0.95);
   border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.resume-dialog :deep(.el-dialog__header) {
+.resume-dialog :deep(.el-dialog__header),
+.view-dialog :deep(.el-dialog__header) {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.resume-dialog :deep(.el-dialog__title) {
+.resume-dialog :deep(.el-dialog__title),
+.view-dialog :deep(.el-dialog__title) {
   color: #fff;
+}
+
+.resume-dialog :deep(.el-dialog__body),
+.view-dialog :deep(.el-dialog__body) {
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .form-section {
@@ -746,5 +872,219 @@ const employeesWithoutResume = computed(() => {
   border-radius: 6px;
   margin-bottom: 8px;
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* View Dialog Styles */
+.resume-view {
+  color: #fff;
+}
+
+.view-header {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.view-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.view-info h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+}
+
+.view-info .view-position {
+  color: #60a5fa;
+  margin: 0 0 4px 0;
+  font-size: 16px;
+}
+
+.view-info .view-email {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+  font-size: 14px;
+}
+
+.view-section {
+  margin-bottom: 24px;
+}
+
+.view-section h3 {
+  color: #60a5fa;
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.view-section > p {
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.view-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.view-skill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(59, 130, 246, 0.15);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.view-skill .skill-name {
+  font-weight: 500;
+  color: #fff;
+}
+
+.view-skill .skill-level {
+  color: #60a5fa;
+  font-size: 13px;
+}
+
+.view-skill .skill-years {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.view-experience {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border-left: 3px solid #60a5fa;
+}
+
+.view-experience .exp-company {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.view-experience .exp-position-date {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.view-experience .exp-position-date span:first-child {
+  color: #60a5fa;
+}
+
+.view-experience .exp-period {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+.view-experience .exp-description {
+  color: rgba(255, 255, 255, 0.75);
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.exp-projects-view {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.exp-projects-view ul {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.exp-projects-view li {
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.view-education {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.view-education .edu-institution {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.view-education .edu-degree {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.view-cert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.view-cert .cert-name {
+  font-weight: 500;
+}
+
+.view-cert .cert-issuer {
+  color: #60a5fa;
+  font-size: 14px;
+}
+
+.view-cert .cert-year {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+.view-languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.view-lang {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.view-lang .lang-name {
+  font-weight: 500;
+}
+
+.view-lang .lang-level {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.resume-card {
+  cursor: pointer;
 }
 </style>
