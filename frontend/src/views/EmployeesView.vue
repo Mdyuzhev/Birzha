@@ -8,6 +8,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { employeesApi } from '@/api/employees'
 import { columnPresetsApi } from '@/api/columnPresets'
 import { savedFiltersApi } from '@/api/savedFilters'
+import { resumesApi } from '@/api/resumes'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmployeeDialog from '@/components/EmployeeDialog.vue'
 import draggable from 'vuedraggable'
@@ -33,6 +34,11 @@ const columnSettings = ref([])
 const historyDialogVisible = ref(false)
 const historyLoading = ref(false)
 const historyItems = ref([])
+
+// Резюме сотрудников (Map: employeeId -> resume)
+const employeeResumes = ref(new Map())
+const resumeViewVisible = ref(false)
+const viewingResume = ref(null)
 
 // Борды (пресеты колонок)
 const presets = ref([])
@@ -622,10 +628,58 @@ async function handleExport(exportAll) {
   }
 }
 
+async function fetchResumes() {
+  try {
+    const response = await resumesApi.getAll()
+    const resumesMap = new Map()
+    for (const resume of response.data) {
+      resumesMap.set(resume.employeeId, resume)
+    }
+    employeeResumes.value = resumesMap
+  } catch (error) {
+    console.error('Error fetching resumes:', error)
+  }
+}
+
+function hasResume(employeeId) {
+  return employeeResumes.value.has(employeeId)
+}
+
+function getResumeId(employeeId) {
+  return employeeResumes.value.get(employeeId)?.id
+}
+
+function openResumeView(employeeId) {
+  const resume = employeeResumes.value.get(employeeId)
+  if (resume) {
+    viewingResume.value = resume
+    resumeViewVisible.value = true
+  }
+}
+
+async function exportResumePdf(resume) {
+  try {
+    const response = await resumesApi.exportPdf(resume.id)
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${resume.employeeName || 'resume'}.pdf`
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    ElMessage.error('Ошибка экспорта PDF')
+  }
+}
+
+function isResumeColumn(col) {
+  return col.label === 'Резюме' || col.prop === 'customFields.resume'
+}
+
 onMounted(async () => {
   await columnsStore.fetchColumns()
   initColumnSettings()
-  await fetchEmployees()
+  await Promise.all([fetchEmployees(), fetchResumes()])
   notificationsStore.startPolling()
 })
 
@@ -828,10 +882,22 @@ onUnmounted(() => {
             :label="col.label"
             :width="col.width"
             :fixed="col.fixed ? 'left' : false"
-            :show-overflow-tooltip="true"
+            :show-overflow-tooltip="!isResumeColumn(col)"
           >
             <template #default="{ row }">
-              <span :class="getStatusClass(col.prop, getNestedValue(row, col.prop))">
+              <!-- Колонка Резюме - специальный рендер -->
+              <template v-if="isResumeColumn(col)">
+                <button
+                  v-if="hasResume(row.id)"
+                  class="resume-btn"
+                  @click.stop="openResumeView(row.id)"
+                >
+                  Резюме
+                </button>
+                <span v-else class="resume-missing">ОТСУТСТВУЕТ</span>
+              </template>
+              <!-- Остальные колонки -->
+              <span v-else :class="getStatusClass(col.prop, getNestedValue(row, col.prop))">
                 {{ getNestedValue(row, col.prop) || '—' }}
               </span>
             </template>
@@ -916,6 +982,81 @@ onUnmounted(() => {
       :employee="editingEmployee"
       @close="handleDialogClose"
     />
+
+    <!-- Resume View Dialog -->
+    <el-dialog
+      v-model="resumeViewVisible"
+      :title="viewingResume?.employeeName || 'Просмотр резюме'"
+      width="800px"
+      class="resume-view-dialog"
+      destroy-on-close
+    >
+      <div v-if="viewingResume" class="resume-view">
+        <div class="view-header">
+          <div class="view-avatar">
+            {{ viewingResume.employeeName?.charAt(0) || '?' }}
+          </div>
+          <div class="view-info">
+            <h2>{{ viewingResume.employeeName }}</h2>
+            <p class="view-position">{{ viewingResume.position || 'Должность не указана' }}</p>
+            <p class="view-email">{{ viewingResume.employeeEmail }}</p>
+          </div>
+        </div>
+
+        <div v-if="viewingResume.summary" class="view-section">
+          <h3>О себе</h3>
+          <p>{{ viewingResume.summary }}</p>
+        </div>
+
+        <div v-if="viewingResume.skills?.length" class="view-section">
+          <h3>Ключевые навыки</h3>
+          <div class="view-skills">
+            <div v-for="(skill, idx) in viewingResume.skills" :key="idx" class="view-skill">
+              <span class="skill-name">{{ skill.name }}</span>
+              <span class="skill-level">{{ skill.level }}</span>
+              <span v-if="skill.years" class="skill-years">{{ skill.years }} лет</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="viewingResume.experience?.length" class="view-section">
+          <h3>Опыт работы</h3>
+          <div v-for="(exp, idx) in viewingResume.experience" :key="idx" class="view-experience">
+            <div class="exp-company">{{ exp.company }}</div>
+            <div class="exp-position-date">
+              <span>{{ exp.position }}</span>
+              <span class="exp-period">{{ exp.startDate }} - {{ exp.endDate || 'по настоящее время' }}</span>
+            </div>
+            <p v-if="exp.description" class="exp-description">{{ exp.description }}</p>
+          </div>
+        </div>
+
+        <div v-if="viewingResume.education?.length" class="view-section">
+          <h3>Образование</h3>
+          <div v-for="(edu, idx) in viewingResume.education" :key="idx" class="view-education">
+            <div class="edu-institution">{{ edu.institution }} <span v-if="edu.year">({{ edu.year }})</span></div>
+            <div class="edu-degree">{{ edu.degree }}<span v-if="edu.field">, {{ edu.field }}</span></div>
+          </div>
+        </div>
+
+        <div v-if="viewingResume.languages?.length" class="view-section">
+          <h3>Языки</h3>
+          <div class="view-languages">
+            <div v-for="(lang, idx) in viewingResume.languages" :key="idx" class="view-lang">
+              <span class="lang-name">{{ lang.language }}</span>
+              <span class="lang-level">{{ lang.level }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="resumeViewVisible = false">Закрыть</el-button>
+        <el-button type="primary" @click="exportResumePdf(viewingResume)">
+          Скачать PDF
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- Filter Dialog -->
     <el-dialog
@@ -2420,6 +2561,206 @@ onUnmounted(() => {
 .save-filter-form .el-input {
   flex: 1;
 }
+
+/* Resume column styles */
+.resume-btn {
+  display: inline-block;
+  padding: 6px 16px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 20px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.resume-btn:hover {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: #10b981;
+}
+
+.resume-missing {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+}
+
+/* Resume View Dialog */
+.resume-view {
+  color: #fff;
+}
+
+.view-header {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.view-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.view-info h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+}
+
+.view-info .view-position {
+  color: #60a5fa;
+  margin: 0 0 4px 0;
+  font-size: 16px;
+}
+
+.view-info .view-email {
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+  font-size: 14px;
+}
+
+.view-section {
+  margin-bottom: 24px;
+}
+
+.view-section h3 {
+  color: #60a5fa;
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.view-section > p {
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.view-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.view-skill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(59, 130, 246, 0.15);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.view-skill .skill-name {
+  font-weight: 500;
+  color: #fff;
+}
+
+.view-skill .skill-level {
+  color: #60a5fa;
+  font-size: 13px;
+}
+
+.view-skill .skill-years {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.view-experience {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border-left: 3px solid #60a5fa;
+}
+
+.view-experience .exp-company {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.view-experience .exp-position-date {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.view-experience .exp-position-date span:first-child {
+  color: #60a5fa;
+}
+
+.view-experience .exp-period {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+.view-experience .exp-description {
+  color: rgba(255, 255, 255, 0.75);
+  margin: 8px 0 0 0;
+  line-height: 1.5;
+}
+
+.view-education {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.view-education .edu-institution {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.view-education .edu-degree {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.view-languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.view-lang {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.view-lang .lang-name {
+  font-weight: 500;
+}
+
+.view-lang .lang-level {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
 </style>
 
 <style>
@@ -2526,6 +2867,44 @@ onUnmounted(() => {
 }
 
 .columns-settings-dialog .el-dialog__headerbtn:hover .el-dialog__close {
+  color: #fff !important;
+}
+
+/* Resume View Dialog Global Styles */
+.resume-view-dialog {
+  background: linear-gradient(145deg, #2d2b55 0%, #1e1b4b 100%) !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+}
+
+.resume-view-dialog .el-dialog__header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 24px !important;
+}
+
+.resume-view-dialog .el-dialog__title {
+  color: #fff !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+}
+
+.resume-view-dialog .el-dialog__body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 24px !important;
+  background: transparent !important;
+}
+
+.resume-view-dialog .el-dialog__footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 24px !important;
+}
+
+.resume-view-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.resume-view-dialog .el-dialog__headerbtn:hover .el-dialog__close {
   color: #fff !important;
 }
 </style>

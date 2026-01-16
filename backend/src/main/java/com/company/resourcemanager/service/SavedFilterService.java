@@ -20,6 +20,7 @@ public class SavedFilterService {
     private final SavedFilterRepository filterRepository;
     private final UserRepository userRepository;
 
+    @Transactional(readOnly = true)
     public List<SavedFilterDto> getUserFilters(Long userId) {
         return filterRepository.findByUserIdOrGlobalOrderByNameAsc(userId)
                 .stream()
@@ -27,6 +28,7 @@ public class SavedFilterService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public SavedFilterDto getFilterById(Long id, Long userId) {
         return filterRepository.findById(id)
                 .filter(filter -> filter.getUser().getId().equals(userId) || Boolean.TRUE.equals(filter.getIsGlobal()))
@@ -34,6 +36,7 @@ public class SavedFilterService {
                 .orElse(null);
     }
 
+    @Transactional(readOnly = true)
     public SavedFilterDto getDefaultFilter(Long userId) {
         return filterRepository.findByUserIdAndIsDefaultTrue(userId)
                 .map(filter -> toDto(filter, userId))

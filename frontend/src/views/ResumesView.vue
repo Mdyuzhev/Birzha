@@ -1,12 +1,13 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { resumesApi } from '@/api/resumes'
 import { employeesApi } from '@/api/employees'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const resumes = ref([])
@@ -42,9 +43,38 @@ const newProject = ref({ name: '', description: '' })
 const skillLevels = ['Начинающий', 'Базовый', 'Средний', 'Продвинутый', 'Эксперт']
 const languageLevels = ['Начальный (A1)', 'Элементарный (A2)', 'Средний (B1)', 'Выше среднего (B2)', 'Продвинутый (C1)', 'Свободный (C2)', 'Родной']
 
-onMounted(() => {
-  fetchResumes()
+onMounted(async () => {
+  await fetchResumes()
   fetchEmployees()
+
+  // Открыть резюме если есть параметр view
+  if (route.query.view) {
+    const resumeId = parseInt(route.query.view)
+    const resume = resumes.value.find(r => r.id === resumeId)
+    if (resume) {
+      openViewDialog(resume)
+    }
+  }
+})
+
+// Следить за изменением query параметра
+watch(() => route.query.view, async (newViewId) => {
+  if (newViewId) {
+    const resumeId = parseInt(newViewId)
+    let resume = resumes.value.find(r => r.id === resumeId)
+    if (!resume) {
+      try {
+        const response = await resumesApi.getById(resumeId)
+        resume = response.data
+      } catch (error) {
+        console.error('Error fetching resume:', error)
+        return
+      }
+    }
+    if (resume) {
+      openViewDialog(resume)
+    }
+  }
 })
 
 async function fetchResumes() {
