@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -8,6 +8,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import { employeesApi } from '@/api/employees'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmployeeDialog from '@/components/EmployeeDialog.vue'
+import draggable from 'vuedraggable'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -25,6 +26,8 @@ const activeFilters = ref({})
 const dateConditions = ref({})
 const exportLoading = ref(false)
 const exportDialogVisible = ref(false)
+const columnsSettingsVisible = ref(false)
+const columnSettings = ref([])
 const historyDialogVisible = ref(false)
 const historyLoading = ref(false)
 const historyItems = ref([])
@@ -36,11 +39,11 @@ const pagination = ref({
   total: 0
 })
 
-// Фиксированные колонки + динамические
-const tableColumns = computed(() => {
+// Все доступные колонки
+const allColumns = computed(() => {
   const fixed = [
-    { prop: 'fullName', label: 'ФИО', width: 220, fixed: true },
-    { prop: 'email', label: 'Email', width: 200 }
+    { prop: 'fullName', label: 'ФИО', width: 220, fixed: true, isFixed: true },
+    { prop: 'email', label: 'Email', width: 200, isFixed: false }
   ]
 
   const dynamic = columnsStore.columns.map(col => ({
@@ -48,11 +51,72 @@ const tableColumns = computed(() => {
     label: col.displayName,
     width: col.fieldType === 'TEXT' ? 150 : 130,
     fieldType: col.fieldType,
-    dictionaryId: col.dictionaryId
+    dictionaryId: col.dictionaryId,
+    isFixed: false
   }))
 
   return [...fixed, ...dynamic]
 })
+
+// Колонки с учётом настроек видимости и порядка
+const tableColumns = computed(() => {
+  if (columnSettings.value.length === 0) {
+    return allColumns.value
+  }
+
+  // Возвращаем только видимые колонки в заданном порядке
+  return columnSettings.value
+    .filter(s => s.visible)
+    .map(s => allColumns.value.find(c => c.prop === s.prop))
+    .filter(Boolean)
+})
+
+// Инициализация настроек колонок
+function initColumnSettings() {
+  const saved = localStorage.getItem('employeeColumnSettings')
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      // Проверяем актуальность сохранённых настроек
+      const allProps = allColumns.value.map(c => c.prop)
+      const validSettings = parsed.filter(s => allProps.includes(s.prop))
+      // Добавляем новые колонки, которых нет в сохранённых
+      const savedProps = validSettings.map(s => s.prop)
+      const newColumns = allColumns.value
+        .filter(c => !savedProps.includes(c.prop))
+        .map(c => ({ prop: c.prop, visible: true }))
+      columnSettings.value = [...validSettings, ...newColumns]
+    } catch {
+      resetColumnSettings()
+    }
+  } else {
+    resetColumnSettings()
+  }
+}
+
+function resetColumnSettings() {
+  columnSettings.value = allColumns.value.map(c => ({
+    prop: c.prop,
+    visible: true
+  }))
+}
+
+function saveColumnSettings() {
+  localStorage.setItem('employeeColumnSettings', JSON.stringify(columnSettings.value))
+  columnsSettingsVisible.value = false
+  ElMessage.success('Настройки сохранены')
+}
+
+function openColumnsSettings() {
+  // Синхронизируем с текущими колонками перед открытием
+  initColumnSettings()
+  columnsSettingsVisible.value = true
+}
+
+function getColumnLabel(prop) {
+  const col = allColumns.value.find(c => c.prop === prop)
+  return col?.label || prop
+}
 
 // Вычисление активных полей для фильтрации
 const filterableColumns = computed(() => {
@@ -328,6 +392,7 @@ async function handleExport(exportAll) {
 
 onMounted(async () => {
   await columnsStore.fetchColumns()
+  initColumnSettings()
   await fetchEmployees()
   notificationsStore.startPolling()
 })
@@ -471,6 +536,12 @@ onUnmounted(() => {
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
           <span>Экспорт</span>
+        </el-button>
+        <el-button class="btn-columns" @click="openColumnsSettings">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z"/>
+          </svg>
+          <span>Данные</span>
         </el-button>
       </div>
 
@@ -697,6 +768,42 @@ onUnmounted(() => {
           Для экспорта по фильтру сначала установите фильтры
         </p>
       </div>
+    </el-dialog>
+
+    <!-- Column Settings Dialog -->
+    <el-dialog
+      v-model="columnsSettingsVisible"
+      title="Настройка колонок"
+      width="450px"
+      class="columns-settings-dialog"
+    >
+      <p class="columns-hint">Перетащите для изменения порядка. Чем выше — тем левее в таблице.</p>
+      <draggable
+        v-model="columnSettings"
+        item-key="prop"
+        handle=".drag-handle"
+        ghost-class="column-ghost"
+        class="columns-list"
+      >
+        <template #item="{ element }">
+          <div class="column-item">
+            <span class="drag-handle">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+              </svg>
+            </span>
+            <el-checkbox v-model="element.visible" class="column-checkbox">
+              {{ getColumnLabel(element.prop) }}
+            </el-checkbox>
+          </div>
+        </template>
+      </draggable>
+      <template #footer>
+        <div class="columns-actions">
+          <el-button @click="resetColumnSettings">Сбросить</el-button>
+          <el-button type="primary" @click="saveColumnSettings">Сохранить</el-button>
+        </div>
+      </template>
     </el-dialog>
 
     <!-- History Dialog -->
@@ -1561,6 +1668,93 @@ onUnmounted(() => {
   padding: 2px 8px;
   border-radius: 4px;
 }
+
+/* Column Settings Button */
+.btn-columns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  background: var(--bg-glass) !important;
+  border: 1px solid #8b5cf6 !important;
+  color: #8b5cf6 !important;
+}
+
+.btn-columns:hover {
+  background: #8b5cf6 !important;
+  color: white !important;
+}
+
+/* Column Settings Modal */
+.columns-hint {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.columns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.column-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(30, 30, 50, 0.8);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.column-item:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(40, 40, 60, 0.9);
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.drag-handle:hover {
+  color: var(--accent);
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.column-checkbox {
+  flex: 1;
+}
+
+.column-checkbox :deep(.el-checkbox__label) {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.column-ghost {
+  opacity: 0.5;
+  background: rgba(124, 58, 237, 0.2) !important;
+  border-color: var(--accent) !important;
+}
+
+.columns-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
 </style>
 
 <style>
@@ -1630,6 +1824,43 @@ onUnmounted(() => {
 }
 
 .history-dialog .el-dialog__headerbtn:hover .el-dialog__close {
+  color: #fff !important;
+}
+
+/* Column Settings Dialog styles */
+.columns-settings-dialog .el-dialog {
+  background: rgba(20, 20, 35, 0.98) !important;
+  border: 1px solid rgba(124, 58, 237, 0.3) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(20px);
+}
+
+.columns-settings-dialog .el-dialog__header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 24px !important;
+}
+
+.columns-settings-dialog .el-dialog__title {
+  color: #fff !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+}
+
+.columns-settings-dialog .el-dialog__body {
+  padding: 20px 24px !important;
+  background: transparent !important;
+}
+
+.columns-settings-dialog .el-dialog__footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 24px !important;
+}
+
+.columns-settings-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.columns-settings-dialog .el-dialog__headerbtn:hover .el-dialog__close {
   color: #fff !important;
 }
 </style>
