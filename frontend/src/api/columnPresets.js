@@ -21,5 +21,8 @@ export const columnPresetsApi = {
   },
   setDefault(id) {
     return client.post(`/column-presets/${id}/set-default`)
+  },
+  toggleGlobal(id) {
+    return client.post(`/column-presets/${id}/toggle-global`)
   }
 }

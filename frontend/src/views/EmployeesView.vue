@@ -7,6 +7,7 @@ import { useColumnsStore } from '@/stores/columns'
 import { useNotificationsStore } from '@/stores/notifications'
 import { employeesApi } from '@/api/employees'
 import { columnPresetsApi } from '@/api/columnPresets'
+import { savedFiltersApi } from '@/api/savedFilters'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmployeeDialog from '@/components/EmployeeDialog.vue'
 import draggable from 'vuedraggable'
@@ -38,6 +39,12 @@ const presets = ref([])
 const selectedPresetId = ref(null)
 const newPresetName = ref('')
 const presetsLoading = ref(false)
+
+// Сохранённые фильтры
+const savedFilters = ref([])
+const selectedFilterId = ref(null)
+const newFilterName = ref('')
+const filtersLoading = ref(false)
 
 // Пагинация - 4 строки на странице
 const pagination = ref({
@@ -227,6 +234,108 @@ async function setDefaultPreset(preset) {
     await fetchPresets()
   } catch (error) {
     ElMessage.error('Ошибка установки по умолчанию')
+  }
+}
+
+async function togglePresetGlobal(preset) {
+  if (!preset.isOwner) {
+    ElMessage.warning('Только владелец может изменять глобальность борда')
+    return
+  }
+  try {
+    await columnPresetsApi.toggleGlobal(preset.id)
+    ElMessage.success(preset.isGlobal ? 'Борд теперь личный' : 'Борд теперь глобальный')
+    await fetchPresets()
+  } catch (error) {
+    ElMessage.error('Ошибка изменения глобальности')
+  }
+}
+
+// Функции для работы с сохранёнными фильтрами
+async function fetchSavedFilters() {
+  filtersLoading.value = true
+  try {
+    const response = await savedFiltersApi.getAll()
+    savedFilters.value = response.data
+  } catch (error) {
+    console.error('Error fetching saved filters:', error)
+  } finally {
+    filtersLoading.value = false
+  }
+}
+
+async function loadSavedFilter(filter) {
+  selectedFilterId.value = filter.id
+  activeFilters.value = { ...filter.filterConfig.activeFilters } || {}
+  dateConditions.value = { ...filter.filterConfig.dateConditions } || {}
+  filterDialogVisible.value = false
+  pagination.value.page = 0
+  await fetchEmployees()
+  ElMessage.success(`Фильтр "${filter.name}" загружен`)
+}
+
+async function saveAsFilter() {
+  if (!newFilterName.value.trim()) {
+    ElMessage.warning('Введите название фильтра')
+    return
+  }
+
+  try {
+    const data = {
+      name: newFilterName.value.trim(),
+      filterConfig: {
+        activeFilters: { ...activeFilters.value },
+        dateConditions: { ...dateConditions.value }
+      },
+      isDefault: false,
+      isGlobal: false
+    }
+
+    await savedFiltersApi.create(data)
+    ElMessage.success(`Фильтр "${newFilterName.value}" сохранён`)
+    newFilterName.value = ''
+    await fetchSavedFilters()
+  } catch (error) {
+    const message = error.response?.data?.message || 'Ошибка сохранения'
+    ElMessage.error(message)
+  }
+}
+
+async function deleteSavedFilter(filter) {
+  if (!filter.isOwner) {
+    ElMessage.warning('Только владелец может удалить фильтр')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `Удалить фильтр "${filter.name}"?`,
+      'Подтверждение',
+      { type: 'warning' }
+    )
+    await savedFiltersApi.delete(filter.id)
+    ElMessage.success('Фильтр удалён')
+    if (selectedFilterId.value === filter.id) {
+      selectedFilterId.value = null
+    }
+    await fetchSavedFilters()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('Ошибка удаления')
+    }
+  }
+}
+
+async function toggleFilterGlobal(filter) {
+  if (!filter.isOwner) {
+    ElMessage.warning('Только владелец может изменять глобальность фильтра')
+    return
+  }
+  try {
+    await savedFiltersApi.toggleGlobal(filter.id)
+    ElMessage.success(filter.isGlobal ? 'Фильтр теперь личный' : 'Фильтр теперь глобальный')
+    await fetchSavedFilters()
+  } catch (error) {
+    ElMessage.error('Ошибка изменения глобальности')
   }
 }
 
@@ -424,10 +533,12 @@ function getFieldDisplayName(fieldName) {
 }
 
 function openFilterDialog() {
+  fetchSavedFilters()
   filterDialogVisible.value = true
 }
 
 function applyFilters() {
+  selectedFilterId.value = null
   filterDialogVisible.value = false
   pagination.value.page = 0
   fetchEmployees()
@@ -436,6 +547,7 @@ function applyFilters() {
 function clearFilters() {
   activeFilters.value = {}
   dateConditions.value = {}
+  selectedFilterId.value = null
   filterDialogVisible.value = false
   pagination.value.page = 0
   fetchEmployees()
@@ -781,9 +893,77 @@ onUnmounted(() => {
     <el-dialog
       v-model="filterDialogVisible"
       title="Фильтры"
-      width="500px"
+      width="550px"
       class="filter-dialog"
     >
+      <!-- Сохранённые фильтры -->
+      <div class="saved-filters-section">
+        <div class="saved-filters-header">
+          <span class="saved-filters-title">Сохранённые фильтры</span>
+          <el-button size="small" text :loading="filtersLoading" @click="fetchSavedFilters">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+          </el-button>
+        </div>
+
+        <div v-if="savedFilters.length > 0" class="saved-filters-list">
+          <div
+            v-for="filter in savedFilters"
+            :key="filter.id"
+            class="saved-filter-item"
+            :class="{ 'filter-active': selectedFilterId === filter.id }"
+          >
+            <div class="saved-filter-info" @click="loadSavedFilter(filter)">
+              <span class="saved-filter-name">{{ filter.name }}</span>
+              <span v-if="filter.isGlobal" class="global-badge">Global</span>
+              <span v-if="!filter.isOwner" class="owner-badge">{{ filter.ownerName }}</span>
+            </div>
+            <div class="saved-filter-actions" v-if="filter.isOwner">
+              <el-button
+                size="small"
+                text
+                :title="filter.isGlobal ? 'Сделать личным' : 'Сделать глобальным'"
+                @click.stop="toggleFilterGlobal(filter)"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+              </el-button>
+              <el-button
+                size="small"
+                text
+                type="danger"
+                title="Удалить"
+                @click.stop="deleteSavedFilter(filter)"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </el-button>
+            </div>
+          </div>
+        </div>
+        <div v-else class="saved-filters-empty">
+          Нет сохранённых фильтров
+        </div>
+
+        <!-- Сохранить как фильтр -->
+        <div v-if="activeFilterCount > 0" class="save-filter-form">
+          <el-input
+            v-model="newFilterName"
+            placeholder="Название фильтра"
+            size="small"
+            @keyup.enter="saveAsFilter"
+          />
+          <el-button type="primary" size="small" @click="saveAsFilter" :disabled="!newFilterName.trim()">
+            Сохранить
+          </el-button>
+        </div>
+      </div>
+
+      <el-divider />
+
       <div class="filter-form">
         <div v-for="col in filterableColumns" :key="col.name" class="filter-field">
           <label class="filter-label">{{ col.displayName }}</label>
@@ -910,8 +1090,10 @@ onUnmounted(() => {
             <div class="preset-info" @click="loadPreset(preset)">
               <span class="preset-name">{{ preset.name }}</span>
               <span v-if="preset.isDefault" class="preset-default-badge">По умолчанию</span>
+              <span v-if="preset.isGlobal" class="global-badge">Global</span>
+              <span v-if="!preset.isOwner" class="owner-badge">{{ preset.ownerName }}</span>
             </div>
-            <div class="preset-actions">
+            <div class="preset-actions" v-if="preset.isOwner">
               <el-button
                 size="small"
                 text
@@ -920,6 +1102,16 @@ onUnmounted(() => {
               >
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                   <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                </svg>
+              </el-button>
+              <el-button
+                size="small"
+                text
+                :title="preset.isGlobal ? 'Сделать личным' : 'Сделать глобальным'"
+                @click.stop="togglePresetGlobal(preset)"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                 </svg>
               </el-button>
               <el-button
@@ -2016,6 +2208,24 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.global-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  color: white;
+  font-weight: 600;
+}
+
+.owner-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 .preset-actions {
   display: flex;
   gap: 4px;
@@ -2050,6 +2260,104 @@ onUnmounted(() => {
 }
 
 .save-preset-form .el-input {
+  flex: 1;
+}
+
+/* Saved Filters Section */
+.saved-filters-section {
+  margin-bottom: 8px;
+}
+
+.saved-filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.saved-filters-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.saved-filters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.saved-filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(30, 30, 50, 0.6);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.saved-filter-item:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(40, 40, 60, 0.8);
+}
+
+.saved-filter-item.filter-active {
+  border-color: var(--accent);
+  background: rgba(124, 58, 237, 0.15);
+}
+
+.saved-filter-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.saved-filter-name {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.saved-filter-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.saved-filter-actions .el-button {
+  padding: 4px 6px !important;
+  color: var(--text-muted) !important;
+}
+
+.saved-filter-actions .el-button:hover {
+  color: var(--accent) !important;
+}
+
+.saved-filter-actions .el-button--danger:hover {
+  color: var(--danger) !important;
+}
+
+.saved-filters-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 16px;
+  background: rgba(30, 30, 50, 0.4);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.save-filter-form {
+  display: flex;
+  gap: 10px;
+}
+
+.save-filter-form .el-input {
   flex: 1;
 }
 </style>

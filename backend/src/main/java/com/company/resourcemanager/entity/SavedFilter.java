@@ -6,16 +6,15 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 @Entity
-@Table(name = "column_presets")
+@Table(name = "saved_filters")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ColumnPreset {
+public class SavedFilter {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,15 +28,16 @@ public class ColumnPreset {
     private String name;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "column_config", columnDefinition = "jsonb")
-    private List<Map<String, Object>> columnConfig;
-
-    @Column(name = "is_default")
-    private Boolean isDefault = false;
+    @Column(name = "filter_config", columnDefinition = "jsonb")
+    private Map<String, Object> filterConfig;
 
     @Builder.Default
     @Column(name = "is_global")
     private Boolean isGlobal = false;
+
+    @Builder.Default
+    @Column(name = "is_default")
+    private Boolean isDefault = false;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

@@ -1,7 +1,8 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onUnmounted } from 'vue'
 import { useColumnsStore } from '@/stores/columns'
 import { employeesApi } from '@/api/employees'
+import { locksApi } from '@/api/locks'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps({
@@ -20,6 +21,11 @@ const form = ref({
 })
 const loading = ref(false)
 const fullNameError = ref('')
+
+// Блокировка
+const lockInfo = ref(null)
+const lockInterval = ref(null)
+const isLocked = computed(() => lockInfo.value?.locked && !lockInfo.value?.ownLock)
 
 const isEdit = computed(() => !!props.employee?.id)
 const title = computed(() => isEdit.value ? 'Редактирование сотрудника' : 'Новый сотрудник')
@@ -49,15 +55,69 @@ function onFullNameInput() {
   fullNameError.value = validateFullName(form.value.fullName)
 }
 
+// Функции для работы с блокировкой
+async function acquireLock() {
+  if (!props.employee?.id) return true
+
+  try {
+    const response = await locksApi.acquire('EMPLOYEE', props.employee.id)
+    lockInfo.value = response.data
+
+    if (lockInfo.value.locked && !lockInfo.value.ownLock) {
+      ElMessage.warning(`Запись редактирует: ${lockInfo.value.lockedByName}`)
+      return false
+    }
+
+    // Запустить heartbeat каждые 2 минуты
+    lockInterval.value = setInterval(async () => {
+      try {
+        await locksApi.renew('EMPLOYEE', props.employee.id)
+      } catch (e) {
+        console.error('Failed to renew lock:', e)
+      }
+    }, 120000)
+
+    return true
+  } catch (error) {
+    console.error('Failed to acquire lock:', error)
+    return true // Разрешаем редактирование если сервис недоступен
+  }
+}
+
+async function releaseLock() {
+  if (lockInterval.value) {
+    clearInterval(lockInterval.value)
+    lockInterval.value = null
+  }
+
+  if (props.employee?.id && lockInfo.value?.ownLock) {
+    try {
+      await locksApi.release('EMPLOYEE', props.employee.id)
+    } catch (e) {
+      console.error('Failed to release lock:', e)
+    }
+  }
+  lockInfo.value = null
+}
+
 // Инициализация формы при открытии
-watch(() => props.visible, (val) => {
+watch(() => props.visible, async (val) => {
   if (val) {
     fullNameError.value = ''
+    lockInfo.value = null
+
     if (props.employee) {
+      // Пытаемся получить блокировку
+      const canEdit = await acquireLock()
+
       form.value = {
         fullName: props.employee.fullName,
         email: props.employee.email || '',
         customFields: { ...props.employee.customFields }
+      }
+
+      if (!canEdit) {
+        // Блокировка не получена - можно только просматривать
       }
     } else {
       form.value = {
@@ -70,7 +130,15 @@ watch(() => props.visible, (val) => {
         form.value.customFields[col.name] = ''
       })
     }
+  } else {
+    // При закрытии освобождаем блокировку
+    await releaseLock()
   }
+})
+
+// Освобождаем блокировку при размонтировании
+onUnmounted(() => {
+  releaseLock()
 })
 
 async function handleSave() {
@@ -100,7 +168,8 @@ async function handleSave() {
   }
 }
 
-function handleClose() {
+async function handleClose() {
+  await releaseLock()
   emit('update:visible', false)
   emit('close', false)
 }
@@ -115,7 +184,15 @@ function handleClose() {
     class="glass-dialog"
     :close-on-click-modal="false"
   >
-    <el-form :model="form" label-width="140px" class="employee-form">
+    <!-- Предупреждение о блокировке -->
+    <div v-if="isLocked" class="lock-warning">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+      </svg>
+      <span>Запись редактирует: <strong>{{ lockInfo?.lockedByName }}</strong></span>
+    </div>
+
+    <el-form :model="form" label-width="140px" class="employee-form" :disabled="isLocked">
       <!-- Фиксированные поля -->
       <div class="form-section">
         <div class="section-title">
@@ -216,9 +293,9 @@ function handleClose() {
           <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
             <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
           </svg>
-          <span>Отмена</span>
+          <span>{{ isLocked ? 'Закрыть' : 'Отмена' }}</span>
         </el-button>
-        <el-button type="primary" :loading="loading" @click="handleSave" size="large">
+        <el-button v-if="!isLocked" type="primary" :loading="loading" @click="handleSave" size="large">
           <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
           </svg>
@@ -230,6 +307,27 @@ function handleClose() {
 </template>
 
 <style scoped>
+.lock-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 10px;
+  color: #f59e0b;
+  font-size: 14px;
+}
+
+.lock-warning svg {
+  flex-shrink: 0;
+}
+
+.lock-warning strong {
+  color: #fbbf24;
+}
+
 .employee-form {
   padding: 8px 0;
 }

@@ -6,19 +6,18 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ColumnPresetDto {
+public class SavedFilterDto {
     private Long id;
     private String name;
-    private List<Map<String, Object>> columnConfig;
-    private Boolean isDefault;
+    private Map<String, Object> filterConfig;
     private Boolean isGlobal;
+    private Boolean isDefault;
     private Long ownerId;
     private String ownerName;
     private Boolean isOwner;

@@ -17,6 +17,10 @@ public interface ColumnPresetRepository extends JpaRepository<ColumnPreset, Long
 
     List<ColumnPreset> findByUserIdOrderByNameAsc(Long userId);
 
+    // Get user's own presets + global presets from other users
+    @Query("SELECT cp FROM ColumnPreset cp WHERE cp.user.id = :userId OR cp.isGlobal = true ORDER BY cp.name")
+    List<ColumnPreset> findByUserIdOrGlobalOrderByNameAsc(Long userId);
+
     Optional<ColumnPreset> findByIdAndUserId(Long id, Long userId);
 
     Optional<ColumnPreset> findByUserIdAndName(Long userId, String name);

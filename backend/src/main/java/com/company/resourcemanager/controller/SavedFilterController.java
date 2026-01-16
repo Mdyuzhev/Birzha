@@ -1,10 +1,10 @@
 package com.company.resourcemanager.controller;
 
-import com.company.resourcemanager.dto.ColumnPresetDto;
-import com.company.resourcemanager.dto.CreateColumnPresetRequest;
+import com.company.resourcemanager.dto.CreateSavedFilterRequest;
+import com.company.resourcemanager.dto.SavedFilterDto;
 import com.company.resourcemanager.entity.User;
 import com.company.resourcemanager.repository.UserRepository;
-import com.company.resourcemanager.service.ColumnPresetService;
+import com.company.resourcemanager.service.SavedFilterService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,44 +15,44 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/column-presets")
+@RequestMapping("/api/saved-filters")
 @RequiredArgsConstructor
-public class ColumnPresetController {
+public class SavedFilterController {
 
-    private final ColumnPresetService presetService;
+    private final SavedFilterService filterService;
     private final UserRepository userRepository;
 
     @GetMapping
-    public ResponseEntity<List<ColumnPresetDto>> getUserPresets() {
+    public ResponseEntity<List<SavedFilterDto>> getUserFilters() {
         Long userId = getCurrentUserId();
-        return ResponseEntity.ok(presetService.getUserPresets(userId));
+        return ResponseEntity.ok(filterService.getUserFilters(userId));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ColumnPresetDto> getPreset(@PathVariable Long id) {
+    public ResponseEntity<SavedFilterDto> getFilter(@PathVariable Long id) {
         Long userId = getCurrentUserId();
-        ColumnPresetDto preset = presetService.getPresetById(id, userId);
-        if (preset == null) {
+        SavedFilterDto filter = filterService.getFilterById(id, userId);
+        if (filter == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(preset);
+        return ResponseEntity.ok(filter);
     }
 
     @GetMapping("/default")
-    public ResponseEntity<ColumnPresetDto> getDefaultPreset() {
+    public ResponseEntity<SavedFilterDto> getDefaultFilter() {
         Long userId = getCurrentUserId();
-        ColumnPresetDto preset = presetService.getDefaultPreset(userId);
-        if (preset == null) {
+        SavedFilterDto filter = filterService.getDefaultFilter(userId);
+        if (filter == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(preset);
+        return ResponseEntity.ok(filter);
     }
 
     @PostMapping
-    public ResponseEntity<?> createPreset(@Valid @RequestBody CreateColumnPresetRequest request) {
+    public ResponseEntity<?> createFilter(@Valid @RequestBody CreateSavedFilterRequest request) {
         Long userId = getCurrentUserId();
         try {
-            ColumnPresetDto created = presetService.createPreset(request, userId);
+            SavedFilterDto created = filterService.createFilter(request, userId);
             return ResponseEntity.ok(created);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
@@ -60,12 +60,12 @@ public class ColumnPresetController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updatePreset(
+    public ResponseEntity<?> updateFilter(
             @PathVariable Long id,
-            @Valid @RequestBody CreateColumnPresetRequest request) {
+            @Valid @RequestBody CreateSavedFilterRequest request) {
         Long userId = getCurrentUserId();
         try {
-            ColumnPresetDto updated = presetService.updatePreset(id, request, userId);
+            SavedFilterDto updated = filterService.updateFilter(id, request, userId);
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
@@ -73,10 +73,10 @@ public class ColumnPresetController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePreset(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteFilter(@PathVariable Long id) {
         Long userId = getCurrentUserId();
         try {
-            presetService.deletePreset(id, userId);
+            filterService.deleteFilter(id, userId);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -87,7 +87,7 @@ public class ColumnPresetController {
     public ResponseEntity<?> setAsDefault(@PathVariable Long id) {
         Long userId = getCurrentUserId();
         try {
-            ColumnPresetDto updated = presetService.setAsDefault(id, userId);
+            SavedFilterDto updated = filterService.setAsDefault(id, userId);
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
@@ -98,7 +98,7 @@ public class ColumnPresetController {
     public ResponseEntity<?> toggleGlobal(@PathVariable Long id) {
         Long userId = getCurrentUserId();
         try {
-            ColumnPresetDto updated = presetService.toggleGlobal(id, userId);
+            SavedFilterDto updated = filterService.toggleGlobal(id, userId);
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
