@@ -132,7 +132,8 @@ async function handleLogin() {
         </el-form>
       </div>
 
-      <p class="copyright">2024 Resource Manager</p>
+      <p class="copyright">2026 Resource Manager</p>
+      <p class="made-by">made by: /tosters</p>
     </div>
   </div>
 </template>
@@ -308,9 +309,10 @@ async function handleLogin() {
 }
 
 .login-form :deep(.el-input__wrapper) {
-  background: var(--bg-glass) !important;
-  border: 1px solid var(--border-glass) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
   box-shadow: none !important;
+  border-radius: 8px !important;
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
@@ -324,10 +326,26 @@ async function handleLogin() {
 
 .login-form :deep(.el-input__inner) {
   color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+.login-form :deep(.el-input) {
+  --el-input-bg-color: transparent;
 }
 
 .login-form :deep(.el-input__inner::placeholder) {
   color: var(--text-muted) !important;
+}
+
+/* Browser autofill override */
+.login-form :deep(.el-input__inner:-webkit-autofill),
+.login-form :deep(.el-input__inner:-webkit-autofill:hover),
+.login-form :deep(.el-input__inner:-webkit-autofill:focus),
+.login-form :deep(.el-input__inner:-webkit-autofill:active) {
+  -webkit-box-shadow: 0 0 0 30px #3d3456 inset !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+  caret-color: #e2e8f0 !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 .login-btn {
@@ -353,8 +371,15 @@ async function handleLogin() {
 /* Copyright */
 .copyright {
   margin-top: 32px;
+  margin-bottom: 4px;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.made-by {
+  color: var(--text-muted);
+  font-size: 12px;
+  opacity: 0.7;
 }
 
 /* Responsive */
