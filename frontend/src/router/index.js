@@ -43,6 +43,12 @@ const routes = [
     name: 'NineBoxDetail',
     component: () => import('@/views/NineBoxDetailView.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/resumes',
+    name: 'Resumes',
+    component: () => import('@/views/ResumesView.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

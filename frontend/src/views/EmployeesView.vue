@@ -491,6 +491,10 @@ function goToNineBox() {
   router.push('/nine-box')
 }
 
+function goToResumes() {
+  router.push('/resumes')
+}
+
 async function openHistoryDialog() {
   historyDialogVisible.value = true
   historyLoading.value = true
@@ -784,6 +788,12 @@ onUnmounted(() => {
             <rect x="16" y="16" width="5" height="5" rx="1"/>
           </svg>
           <span>9 Boxes</span>
+        </el-button>
+        <el-button class="btn-resumes" @click="goToResumes">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+          </svg>
+          <span>Резюме</span>
         </el-button>
       </div>
 
@@ -2098,6 +2108,22 @@ onUnmounted(() => {
 
 .btn-nine-box:hover {
   background: #f59e0b !important;
+  color: white !important;
+}
+
+/* Resumes Button */
+.btn-resumes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  background: var(--bg-glass) !important;
+  border: 1px solid #10b981 !important;
+  color: #10b981 !important;
+}
+
+.btn-resumes:hover {
+  background: #10b981 !important;
   color: white !important;
 }
 
