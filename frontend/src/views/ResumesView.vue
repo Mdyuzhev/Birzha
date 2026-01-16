@@ -504,7 +504,7 @@ const employeesWithoutResume = computed(() => {
       v-model="viewDialogVisible"
       :title="viewingResume?.employeeName || 'Просмотр резюме'"
       width="800px"
-      class="view-dialog"
+      custom-class="resume-view-dialog"
       destroy-on-close
     >
       <div v-if="viewingResume" class="resume-view">
@@ -782,12 +782,14 @@ const employeesWithoutResume = computed(() => {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Dialog Styles - 95% opacity for better readability */
+/* Dialog Styles */
 .resume-dialog :deep(.el-dialog),
 .view-dialog :deep(.el-dialog) {
-  background: rgba(26, 26, 46, 0.95);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(145deg, #2d2b55 0%, #1e1b4b 100%) !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: none !important;
 }
 
 .resume-dialog :deep(.el-dialog__header),
@@ -1086,5 +1088,29 @@ const employeesWithoutResume = computed(() => {
 
 .resume-card {
   cursor: pointer;
+}
+</style>
+
+<style>
+/* Global styles for resume dialogs - override Element Plus defaults */
+.resume-view-dialog {
+  background: linear-gradient(145deg, #2d2b55 0%, #1e1b4b 100%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+}
+
+.resume-view-dialog .el-dialog__header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.resume-view-dialog .el-dialog__title {
+  color: #fff;
+}
+
+.resume-view-dialog .el-dialog__body {
+  max-height: 70vh;
+  overflow-y: auto;
 }
 </style>

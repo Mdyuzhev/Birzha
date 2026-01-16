@@ -259,11 +259,11 @@ body {
 
 /* Dialog */
 .el-dialog {
-  background: var(--bg-glass-strong) !important;
-  backdrop-filter: var(--blur-strong);
-  -webkit-backdrop-filter: var(--blur-strong);
+  background: linear-gradient(145deg, #2d2b55 0%, #1e1b4b 100%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-radius: var(--radius-xl) !important;
-  border: 1px solid var(--border-glass) !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
   box-shadow: var(--shadow-elevation) !important;
 }
 
