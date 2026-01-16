@@ -16,11 +16,17 @@ public interface EmployeeResumeRepository extends JpaRepository<EmployeeResume, 
 
     boolean existsByEmployeeId(Long employeeId);
 
-    @Query("SELECT r FROM EmployeeResume r JOIN r.employee e WHERE LOWER(e.fullName) LIKE LOWER(CONCAT('%', :query, '%'))")
+    @Query("SELECT r FROM EmployeeResume r JOIN FETCH r.employee e WHERE LOWER(e.fullName) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<EmployeeResume> searchByEmployeeName(@Param("query") String query);
 
     @Query("SELECT r FROM EmployeeResume r JOIN FETCH r.employee")
     List<EmployeeResume> findAllWithEmployees();
+
+    @Query("SELECT r FROM EmployeeResume r JOIN FETCH r.employee WHERE r.id = :id")
+    Optional<EmployeeResume> findByIdWithEmployee(@Param("id") Long id);
+
+    @Query("SELECT r FROM EmployeeResume r JOIN FETCH r.employee WHERE r.employee.id = :employeeId")
+    Optional<EmployeeResume> findByEmployeeIdWithEmployee(@Param("employeeId") Long employeeId);
 
     void deleteByEmployeeId(Long employeeId);
 }

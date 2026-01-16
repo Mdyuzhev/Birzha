@@ -36,13 +36,13 @@ public class ResumeService {
     }
 
     public EmployeeResumeDTO getByEmployeeId(Long employeeId) {
-        return resumeRepository.findByEmployeeId(employeeId)
+        return resumeRepository.findByEmployeeIdWithEmployee(employeeId)
                 .map(this::toDTO)
                 .orElse(null);
     }
 
     public EmployeeResumeDTO getById(Long id) {
-        return resumeRepository.findById(id)
+        return resumeRepository.findByIdWithEmployee(id)
                 .map(this::toDTO)
                 .orElseThrow(() -> new RuntimeException("Resume not found"));
     }
