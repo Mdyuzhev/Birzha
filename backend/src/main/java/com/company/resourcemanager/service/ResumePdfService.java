@@ -5,9 +5,13 @@ import com.lowagie.text.*;
 import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.PdfWriter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -23,14 +27,32 @@ public class ResumePdfService {
 
     public ResumePdfService() {
         try {
-            BaseFont baseFont = BaseFont.createFont(BaseFont.HELVETICA, "Cp1251", BaseFont.EMBEDDED);
-            titleFont = new Font(baseFont, 18, Font.BOLD);
-            headerFont = new Font(baseFont, 14, Font.BOLD);
-            subHeaderFont = new Font(baseFont, 12, Font.BOLD);
+            // Load TTF font with Unicode support for Cyrillic
+            ClassPathResource fontResource = new ClassPathResource("fonts/DejaVuSans.ttf");
+            ClassPathResource fontBoldResource = new ClassPathResource("fonts/DejaVuSans-Bold.ttf");
+
+            Path tempFont = Files.createTempFile("DejaVuSans", ".ttf");
+            Path tempFontBold = Files.createTempFile("DejaVuSans-Bold", ".ttf");
+
+            try (InputStream is = fontResource.getInputStream()) {
+                Files.copy(is, tempFont, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            try (InputStream is = fontBoldResource.getInputStream()) {
+                Files.copy(is, tempFontBold, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            BaseFont baseFont = BaseFont.createFont(tempFont.toString(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+            BaseFont baseFontBold = BaseFont.createFont(tempFontBold.toString(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+
+            titleFont = new Font(baseFontBold, 18, Font.NORMAL);
+            headerFont = new Font(baseFontBold, 14, Font.NORMAL);
+            subHeaderFont = new Font(baseFontBold, 12, Font.NORMAL);
             normalFont = new Font(baseFont, 11, Font.NORMAL);
             smallFont = new Font(baseFont, 10, Font.ITALIC);
+
+            log.info("Successfully loaded DejaVuSans fonts for PDF generation");
         } catch (Exception e) {
-            log.warn("Could not create Cp1251 font, using default", e);
+            log.error("Could not load DejaVuSans font, using fallback", e);
             titleFont = new Font(Font.HELVETICA, 18, Font.BOLD);
             headerFont = new Font(Font.HELVETICA, 14, Font.BOLD);
             subHeaderFont = new Font(Font.HELVETICA, 12, Font.BOLD);
