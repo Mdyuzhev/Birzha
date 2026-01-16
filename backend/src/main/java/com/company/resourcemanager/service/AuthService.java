@@ -45,12 +45,13 @@ public class AuthService {
                     throw new BadRequestException("Учетная запись занята, выберите другую");
                 }
                 // Session expired, remove it
-                userSessionRepository.delete(session);
+                userSessionRepository.deleteByUserId(user.getId());
             });
         } else {
             // For admin, just remove old session
-            userSessionRepository.findByUserId(user.getId()).ifPresent(userSessionRepository::delete);
+            userSessionRepository.deleteByUserId(user.getId());
         }
+        userSessionRepository.flush();
 
         String token = tokenProvider.generateToken(user.getUsername(), user.getRole().name());
 
