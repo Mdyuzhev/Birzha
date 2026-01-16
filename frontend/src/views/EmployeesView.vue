@@ -487,6 +487,10 @@ function goToAnalytics() {
   router.push('/analytics')
 }
 
+function goToNineBox() {
+  router.push('/nine-box')
+}
+
 async function openHistoryDialog() {
   historyDialogVisible.value = true
   historyLoading.value = true
@@ -766,6 +770,20 @@ onUnmounted(() => {
             <path d="M3 5h18v2H3V5zm0 6h18v2H3v-2zm0 6h18v2H3v-2z"/>
           </svg>
           <span>Данные</span>
+        </el-button>
+        <el-button class="btn-nine-box" @click="goToNineBox">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+            <rect x="2" y="2" width="5" height="5" rx="1"/>
+            <rect x="9" y="2" width="5" height="5" rx="1"/>
+            <rect x="16" y="2" width="5" height="5" rx="1"/>
+            <rect x="2" y="9" width="5" height="5" rx="1"/>
+            <rect x="9" y="9" width="5" height="5" rx="1"/>
+            <rect x="16" y="9" width="5" height="5" rx="1"/>
+            <rect x="2" y="16" width="5" height="5" rx="1"/>
+            <rect x="9" y="16" width="5" height="5" rx="1"/>
+            <rect x="16" y="16" width="5" height="5" rx="1"/>
+          </svg>
+          <span>9 Boxes</span>
         </el-button>
       </div>
 
@@ -2064,6 +2082,22 @@ onUnmounted(() => {
 
 .btn-columns:hover {
   background: #8b5cf6 !important;
+  color: white !important;
+}
+
+/* 9-Box Button */
+.btn-nine-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  background: var(--bg-glass) !important;
+  border: 1px solid #f59e0b !important;
+  color: #f59e0b !important;
+}
+
+.btn-nine-box:hover {
+  background: #f59e0b !important;
   color: white !important;
 }
 

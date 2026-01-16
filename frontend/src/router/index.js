@@ -31,6 +31,18 @@ const routes = [
     name: 'Analytics',
     component: () => import('@/views/AnalyticsView.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/nine-box',
+    name: 'NineBox',
+    component: () => import('@/views/NineBoxView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/nine-box/:boxId',
+    name: 'NineBoxDetail',
+    component: () => import('@/views/NineBoxDetailView.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
