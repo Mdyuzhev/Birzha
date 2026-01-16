@@ -27,7 +27,12 @@ async function handleLogin() {
     ElMessage.success('Добро пожаловать!')
     router.push('/')
   } catch (error) {
-    ElMessage.error('Неверный логин или пароль')
+    const message = error.response?.data?.message || error.response?.data?.error
+    if (message && message.includes('занята')) {
+      ElMessage.error(message)
+    } else {
+      ElMessage.error('Неверный логин или пароль')
+    }
   } finally {
     loading.value = false
   }
