@@ -1,6 +1,22 @@
-# Resource Management Tool
+# Birzha — Биржа талантов 3.0
 
-## Сервер приложения (Production)
+## Описание проекта
+
+**Birzha** — внутренняя HRM-система для управления карьерными перемещениями и развитием сотрудников. Система обеспечивает:
+- Подачу и согласование заявок на развитие/ротацию сотрудников
+- Мультитенантность (несколько ДЗО — дочерних организаций)
+- 6-уровневую ролевую модель
+- Workflow согласования с HR BP и БОРУП
+- Ведение чёрного списка кандидатов
+- Аналитику по заявкам
+
+**ТЗ:** `E:\Birzha\Tasks\ТЗ на Биржу талантов 3.0 (002) (3).docx`
+**GAP-анализ:** `E:\Birzha\Tasks\GAP_ANALYSIS_TZ_VS_IMPLEMENTATION.md`
+**План разработки:** `E:\Birzha\.claude\DEVELOPMENT_PLAN.md`
+
+---
+
+## Сервер приложения
 
 **АВТОНОМНЫЙ ДОСТУП:** Работа с сервером через SSH выполняется полностью автономно.
 - SSH: `ssh -o StrictHostKeyChecking=no flomaster@flomasterserver`
@@ -8,19 +24,27 @@
 - Путь проекта: `~/projects/birzha`
 - НЕ спрашивать подтверждение fingerprint
 - НЕ спрашивать пароль у пользователя
-- Выполнять команды автономно без запросов
 
-## Описание проекта
-
-Внутренняя система для отслеживания доступности сотрудников и их аллокации на проекты. Позволяет видеть кто занят, кто освободился и готов к новым задачам.
+---
 
 ## Технический стек
 
-**Backend**: Java 17+, Spring Boot 3.x, Spring Security, Spring Data JPA, Flyway
-**Frontend**: Vue 3, Composition API, Pinia, Axios, Element Plus
-**Database**: PostgreSQL 15+
-**Auth**: JWT (jjwt library)
-**Deploy**: Docker, docker-compose
+| Компонент | Технология | Версия |
+|-----------|------------|--------|
+| **Backend** | Java, Spring Boot | 17, 3.2.5 |
+| **Security** | Spring Security, JWT | jjwt 0.12.3 |
+| **ORM** | Spring Data JPA, Hibernate | |
+| **Миграции** | Flyway | 10.10.0 |
+| **БД** | PostgreSQL | 15+ |
+| **JSONB** | Hypersistence Utils | 3.7.3 |
+| **Frontend** | Vue 3, Composition API | 3.5.24 |
+| **State** | Pinia | 3.0.4 |
+| **UI Kit** | Element Plus | 2.13.1 |
+| **HTTP** | Axios | 1.13.2 |
+| **Сборка** | Vite | 7.2.4 |
+| **Деплой** | Docker, docker-compose | |
+
+---
 
 ## Архитектура
 
@@ -32,177 +56,190 @@
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-## Модель данных
+**Credentials:**
+- DB: `resourcedb` / `resourceuser` / `resourcepass`
+- Admin: `admin` / `admin123`
+- Test users: `user1`-`user10` / `user`
 
-### users (учётные записи)
-```sql
-CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('ADMIN', 'USER')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by BIGINT REFERENCES users(id)
-);
+---
+
+## Ролевая модель (6 ролей)
+
+| Роль | Код | Описание |
+|------|-----|----------|
+| Администратор системы | `SYSTEM_ADMIN` | Полный доступ ко всем ДЗО |
+| Администратор ДЗО | `DZO_ADMIN` | Управление своим ДЗО |
+| Рекрутер | `RECRUITER` | Обработка заявок |
+| HR BP | `HR_BP` | Согласование заявок |
+| БОРУП | `BORUP` | Согласование при ЗП >30% |
+| Руководитель | `MANAGER` | Подача заявок |
+
+---
+
+## Ключевые сущности
+
+### Мультитенантность
+- **Dzo** — дочерние организации (ЦОД, Солар, БФТ, Т2 и др.)
+- Все данные фильтруются по `dzo_id`
+
+### Пользователи
+- **User** — учётные записи с множественными ролями
+- **UserRole** — связь пользователь ↔ роль
+- **HrBpAssignment** — закрепление HR BP за подразделениями
+
+### Сотрудники
+- **Employee** — сотрудники с динамическими полями (JSONB)
+- **EmployeeHistory** — аудит изменений
+- **ColumnDefinition** — метаданные колонок
+- **Dictionary** — справочники значений
+
+### Заявки (основной функционал)
+- **Application** — заявки на развитие/ротацию
+- **ApplicationHistory** — история изменений заявок
+- **ApplicationStatus** — 14 статусов workflow
+
+### Дополнительно
+- **NineBoxAssessment** — 9-Box оценки
+- **EmployeeResume** — резюме с PDF генерацией
+- **ColumnPreset**, **SavedFilter** — пользовательские настройки
+- **RecordLock** — блокировки при редактировании
+
+---
+
+## Workflow заявок
+
+```
+DRAFT → AVAILABLE_FOR_REVIEW → IN_PROGRESS → INTERVIEW
+                                    ↓
+                            PENDING_HR_BP
+                            ↓           ↓
+                    APPROVED_HR_BP   REJECTED_HR_BP
+                            ↓
+            (если >30% ЗП) PENDING_BORUP
+                            ↓           ↓
+                    APPROVED_BORUP   REJECTED_BORUP
+                            ↓
+                    PREPARING_TRANSFER → TRANSFERRED
+                                       → DISMISSED
+                                       → CANCELLED
 ```
 
-### employees (сотрудники)
-```sql
-CREATE TABLE employees (
-    id BIGSERIAL PRIMARY KEY,
-    full_name VARCHAR(255) NOT NULL,
-    email VARCHAR(255),
-    custom_fields JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+---
 
-CREATE INDEX idx_employees_custom_fields ON employees USING GIN (custom_fields);
-```
-
-### column_definitions (динамические колонки)
-```sql
-CREATE TABLE column_definitions (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL,
-    display_name VARCHAR(100) NOT NULL,
-    field_type VARCHAR(20) NOT NULL CHECK (field_type IN ('TEXT', 'SELECT', 'DATE', 'NUMBER')),
-    dictionary_id BIGINT REFERENCES dictionaries(id),
-    sort_order INT DEFAULT 0,
-    is_required BOOLEAN DEFAULT FALSE
-);
-```
-
-### dictionaries (справочники)
-```sql
-CREATE TABLE dictionaries (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL,
-    display_name VARCHAR(100) NOT NULL,
-    values JSONB NOT NULL DEFAULT '[]'
-);
-```
-
-### employee_history (аудит изменений)
-```sql
-CREATE TABLE employee_history (
-    id BIGSERIAL PRIMARY KEY,
-    employee_id BIGINT NOT NULL REFERENCES employees(id),
-    changed_by BIGINT NOT NULL REFERENCES users(id),
-    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    field_name VARCHAR(100) NOT NULL,
-    old_value TEXT,
-    new_value TEXT
-);
-
-CREATE INDEX idx_employee_history_employee ON employee_history(employee_id);
-```
-
-## API Endpoints
+## API Структура
 
 ### Auth
-POST /api/auth/login — авторизация, возвращает JWT
-GET /api/auth/me — текущий пользователь
+- `POST /api/auth/login` — авторизация → JWT
+- `GET /api/auth/me` — текущий пользователь
+- `POST /api/auth/logout` — выход
 
-### Employees
-GET /api/employees — список с фильтрацией и пагинацией
-GET /api/employees/{id} — один сотрудник
-POST /api/employees — создание
-PUT /api/employees/{id} — обновление
-DELETE /api/employees/{id} — удаление
-GET /api/employees/{id}/history — история изменений
+### Applications (Заявки)
+- `GET/POST /api/applications` — CRUD
+- `GET /api/applications/{id}` — одна заявка
+- `GET /api/applications/{id}/history` — история
+- `GET /api/applications/{id}/available-actions` — доступные действия
+- `GET /api/applications/stats` — статистика
 
-### Columns (только ADMIN)
-GET /api/columns — список колонок
-POST /api/columns — создание
-PUT /api/columns/{id} — обновление
-DELETE /api/columns/{id} — удаление
-PUT /api/columns/reorder — изменение порядка
+### Application Workflow
+- `POST /api/applications/{id}/submit` — подать заявку
+- `POST /api/applications/{id}/assign-recruiter` — взять в работу
+- `POST /api/applications/{id}/start-interview` — начать собеседование
+- `POST /api/applications/{id}/send-to-hr-bp` — на согласование HR BP
+- `POST /api/applications/{id}/approve-hr-bp` — согласовать HR BP
+- `POST /api/applications/{id}/reject-hr-bp` — отклонить HR BP
+- `POST /api/applications/{id}/send-to-borup` — на согласование БОРУП
+- `POST /api/applications/{id}/approve-borup` — согласовать БОРУП
+- `POST /api/applications/{id}/reject-borup` — отклонить БОРУП
+- `POST /api/applications/{id}/prepare-transfer` — подготовка к переводу
+- `POST /api/applications/{id}/complete-transfer` — завершить перевод
+- `POST /api/applications/{id}/dismiss` — увольнение
+- `POST /api/applications/{id}/cancel` — отмена
 
-### Dictionaries (только ADMIN)
-GET /api/dictionaries — список справочников
-POST /api/dictionaries — создание
-PUT /api/dictionaries/{id} — обновление
-DELETE /api/dictionaries/{id} — удаление
+### Employees, Columns, Dictionaries, Users, DZO, Roles
+— Стандартный CRUD с проверкой ролей
 
-### Users (только ADMIN)
-GET /api/users — список пользователей
-POST /api/users — создание
-PUT /api/users/{id} — обновление
-DELETE /api/users/{id} — деактивация
+---
 
 ## Структура проекта
 
 ```
-resource-manager/
-├── .claude/
-│   ├── CLAUDE.md
-│   ├── settings.json
-│   ├── settings.local.json
-│   └── commands/
+E:\Birzha/
+├── .claude/                    # Настройки Claude
+│   ├── CLAUDE.md              # Этот файл
+│   ├── DEVELOPMENT_PLAN.md    # План разработки по фазам
+│   ├── Project_map.md         # Полная карта архитектуры
+│   └── settings.json
 ├── backend/
-│   ├── src/main/java/com/company/resourcemanager/
-│   │   ├── ResourceManagerApplication.java
-│   │   ├── config/
-│   │   ├── controller/
-│   │   ├── service/
-│   │   ├── repository/
-│   │   ├── entity/
-│   │   ├── dto/
-│   │   ├── security/
-│   │   └── exception/
-│   ├── src/main/resources/
-│   │   ├── application.yml
-│   │   └── db/migration/
-│   ├── pom.xml
-│   └── Dockerfile
+│   └── src/main/java/com/company/resourcemanager/
+│       ├── config/            # Security, JWT, CORS
+│       ├── controller/        # REST контроллеры
+│       ├── service/           # Бизнес-логика
+│       ├── repository/        # JPA репозитории
+│       ├── entity/            # Сущности БД
+│       ├── dto/               # DTO + workflow/
+│       └── exception/         # Обработка ошибок
 ├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── views/
-│   │   ├── stores/
-│   │   ├── api/
-│   │   ├── router/
-│   │   └── utils/
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── nginx.conf
-│   └── Dockerfile
-├── docker-compose.yml
-└── init-data.sql
+│   └── src/
+│       ├── api/               # HTTP клиенты
+│       ├── stores/            # Pinia stores
+│       ├── views/             # Страницы
+│       ├── components/        # Компоненты
+│       └── router/            # Маршрутизация
+├── Tasks/                     # Инструкции по фазам
+└── docker-compose.yml
 ```
 
-## Фазы разработки
+---
 
-### Фаза 1: Backend Core
-Структура проекта, pom.xml с зависимостями
-Entities и Flyway миграции
-JWT авторизация (login, token validation)
-CRUD для employees с фильтрацией
+## Текущий статус разработки
 
-### Фаза 2: Backend Admin
-CRUD для columns, dictionaries, users
-История изменений
-Role-based access (ADMIN vs USER)
+| Фаза | Название | Статус |
+|------|----------|--------|
+| 1 | Мультитенантность (ДЗО) | ✅ Завершено |
+| 2 | Расширенная ролевая модель | ✅ Завершено |
+| 3 | Заявки — Backend | ✅ Завершено |
+| 4 | Заявки — Workflow | ✅ Завершено |
+| 5 | Заявки — Frontend | ⏳ В работе |
+| 6 | Чёрный список | ⏳ Ожидает |
+| 7 | Справочник стеков | ⏳ Ожидает |
+| 8 | Аналитика | ⏳ Ожидает |
+| 9 | Email-уведомления | ⏳ Ожидает |
+| 10 | 2FA | ⏳ Ожидает |
+| 11-13 | Интеграции | ⏳ Ожидает |
 
-### Фаза 3: Frontend Core
-Структура Vue проекта, роутинг
-Страница логина
-Таблица сотрудников с динамическими колонками
-Форма добавления/редактирования
+---
 
-### Фаза 4: Frontend Admin + Docker
-Админка: колонки, справочники, пользователи
-Фильтрация и сортировка
-Docker-compose с полной сборкой
+## Команды разработки
 
-## Критерии готовности
+```bash
+# Запуск всего стека
+cd E:\Birzha
+docker-compose up --build -d
 
-- Авторизация работает (admin/admin123)
-- Таблица сотрудников с динамическими колонками
-- CRUD для сотрудников
-- Фильтрация по любому полю
-- Админ управляет колонками и справочниками
-- Админ создаёт пользователей
-- История изменений записывается
-- docker-compose поднимает всё одной командой
+# Только backend (dev)
+cd backend
+./mvnw spring-boot:run
+
+# Только frontend (dev)
+cd frontend
+npm run dev
+
+# Логи
+docker logs resource-manager-backend -f
+docker logs resource-manager-frontend -f
+
+# Проверка API
+curl http://localhost:31081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+```
+
+---
+
+## Важные файлы
+
+- **Миграции:** `backend/src/main/resources/db/migration/V*.sql`
+- **Конфиг:** `backend/src/main/resources/application.yml`
+- **Security:** `backend/.../config/SecurityConfig.java`
+- **JWT:** `backend/.../config/JwtTokenProvider.java`
+- **Workflow:** `backend/.../service/ApplicationWorkflowService.java`

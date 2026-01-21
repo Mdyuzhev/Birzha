@@ -29,6 +29,7 @@ public class ApplicationService {
     private final UserRepository userRepository;
     private final CurrentUserService currentUserService;
     private final RoleService roleService;
+    private final BlacklistService blacklistService;
 
     // === CRUD операции ===
 
@@ -42,6 +43,11 @@ public class ApplicationService {
 
         Employee employee = employeeRepository.findById(request.getEmployeeId())
             .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        // Проверка чёрного списка
+        if (blacklistService.isEmployeeInBlacklist(request.getEmployeeId(), currentUser.getDzo().getId())) {
+            throw new BusinessException("Сотрудник находится в чёрном списке. Создание заявки невозможно.");
+        }
 
         // Проверка: нет ли уже активной заявки на этого сотрудника
         List<ApplicationStatus> finalStatuses = List.of(

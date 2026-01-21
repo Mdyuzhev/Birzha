@@ -16,10 +16,59 @@
     ]
   },
   "context": {
-    "project": "ResourceManager",
-    "type": "fullstack-web-app",
-    "backend": "java-spring-boot",
-    "frontend": "vue3",
-    "database": "postgresql"
+    "project": "Birzha",
+    "fullName": "Биржа талантов 3.0",
+    "type": "hrm-fullstack-web-app",
+    "description": "HRM система для управления карьерными перемещениями и развитием сотрудников",
+    "backend": {
+      "language": "java",
+      "version": "17",
+      "framework": "spring-boot",
+      "frameworkVersion": "3.2.5",
+      "orm": "spring-data-jpa",
+      "migrations": "flyway",
+      "auth": "jwt"
+    },
+    "frontend": {
+      "framework": "vue3",
+      "version": "3.5.24",
+      "stateManagement": "pinia",
+      "uiKit": "element-plus",
+      "httpClient": "axios",
+      "buildTool": "vite"
+    },
+    "database": {
+      "type": "postgresql",
+      "version": "15",
+      "features": ["jsonb", "gin-indexes"]
+    },
+    "deployment": {
+      "method": "docker-compose",
+      "ports": {
+        "frontend": 31080,
+        "backend": 31081,
+        "database": 31432
+      }
+    }
+  },
+  "features": {
+    "multitenancy": true,
+    "tenantField": "dzo_id",
+    "roles": ["SYSTEM_ADMIN", "DZO_ADMIN", "RECRUITER", "HR_BP", "BORUP", "MANAGER"],
+    "workflow": true,
+    "audit": true,
+    "dynamicColumns": true
+  },
+  "paths": {
+    "backend": "backend/src/main/java/com/company/resourcemanager",
+    "frontend": "frontend/src",
+    "migrations": "backend/src/main/resources/db/migration",
+    "tasks": "Tasks",
+    "docs": ".claude"
+  },
+  "server": {
+    "host": "flomasterserver",
+    "user": "flomaster",
+    "projectPath": "~/projects/birzha"
   }
 }
