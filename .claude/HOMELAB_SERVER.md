@@ -16,53 +16,71 @@
 ## Quick Connect
 
 ```bash
-# Основной способ подключения (работает всегда)
-ssh flomaster@192.168.1.74
+# Основной способ подключения (БЕЗ ПАРОЛЯ)
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74
 
-# Через hostname (если Tailscale активен)
-ssh flomaster@flomasterserver
+# Или через alias (если настроен .ssh/config)
+ssh homelab
 ```
+
+**Статус SSH Key:** ✅ Установлен и работает
 
 ## SSH Setup (Windows)
 
-**Цель:** SSH должен работать без запросов пароля и подтверждений.
+**Цель:** SSH работает БЕЗ запросов пароля и подтверждений.
 
-### 1. SSH Config
+### 1. SSH Config (уже настроен)
 
-Добавить в `C:\Users\<username>\.ssh\config`:
+Файл `~/.ssh/config`:
 
 ```
 Host homelab
     HostName 192.168.1.74
     User flomaster
+    IdentityFile ~/.ssh/id_ed25519
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
 
 Host flomasterserver
     HostName 192.168.1.74
     User flomaster
+    IdentityFile ~/.ssh/id_ed25519
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
 ```
 
-### 2. SSH Key Setup (через пароль)
-
-Если SSH ключ не настроен, подключение работает через пароль:
+### 2. SSH Key (уже установлен)
 
 ```bash
-# Автоматическое подключение с использованием StrictHostKeyChecking=no
-ssh -o StrictHostKeyChecking=no flomaster@192.168.1.74
+# Публичный ключ установлен на сервере:
+# ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAyd0u+2ZA2Dy/1fPXOsBTuQ9Xc6tD0bZoolqKQQ1u/w claude-agent
+
+# Расположение ключей:
+~/.ssh/id_ed25519      # Приватный ключ
+~/.ssh/id_ed25519.pub  # Публичный ключ
 ```
 
-**Пароль:** `Misha2021@1@`
-
-### 3. Проверка подключения
+### 3. Использование SSH
 
 ```bash
-ssh flomaster@192.168.1.74 "echo 'SSH OK'"
+# Метод 1: С явным указанием ключа (рекомендуется для скриптов)
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "команда"
+
+# Метод 2: Через alias homelab (может не работать в Git Bash)
+ssh homelab "команда"
+
+# Метод 3: Полный синтаксис для надёжности
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null flomaster@192.168.1.74
 ```
 
-**Ожидаемый результат:** `SSH OK` без запроса пароля
+### 4. Проверка подключения
+
+```bash
+# Тест без пароля
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "echo 'SSH OK'"
+```
+
+**Ожидаемый результат:** `SSH OK` БЕЗ запроса пароля
 
 ---
 
@@ -103,10 +121,10 @@ Password: resourcepass
 
 ```bash
 # Full deploy: git push + pull + rebuild на сервере
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && git pull && docker-compose down && docker-compose up -d --build"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && git pull && docker-compose down && docker-compose up -d --build"
 
 # Quick restart (без пересборки)
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose restart"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose restart"
 ```
 
 ### Деплой с сервера
@@ -133,38 +151,38 @@ docker-compose ps
 
 ```bash
 # Статус контейнеров
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose ps"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose ps"
 
 # Логи backend (последние 50 строк)
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager-backend --tail 50"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager-backend --tail 50"
 
 # Логи frontend
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager-frontend --tail 50"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager-frontend --tail 50"
 
 # Логи PostgreSQL
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager-db --tail 50"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager-db --tail 50"
 
 # Следить за логами в реальном времени
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose logs -f backend"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose logs -f backend"
 ```
 
 ### Управление контейнерами
 
 ```bash
 # Перезапуск всех сервисов
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose restart"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose restart"
 
 # Перезапуск только backend
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose restart backend"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose restart backend"
 
 # Остановить все
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose down"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose down"
 
 # Запустить все
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose up -d"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose up -d"
 
 # Пересобрать все с нуля (clean build)
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose down -v && docker-compose up -d --build"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose down -v && docker-compose up -d --build"
 ```
 
 ### Проверка сервисов
@@ -176,10 +194,10 @@ curl -s http://192.168.1.74:31081/api/auth/login \
   -d '{"username":"admin","password":"admin123"}' | head -c 200
 
 # Проверка PostgreSQL
-ssh flomaster@192.168.1.74 "docker exec resource-manager-db psql -U resourceuser -d resourcedb -c 'SELECT version();'"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "docker exec resource-manager-db psql -U resourceuser -d resourcedb -c 'SELECT version();'"
 
 # Проверка Flyway миграций
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager-backend 2>&1 | grep -i 'flyway\|migration' | tail -10"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager-backend 2>&1 | grep -i 'flyway\|migration' | tail -10"
 ```
 
 ---
@@ -190,30 +208,30 @@ ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker logs resource-manager
 
 ```bash
 # Проверить логи на ошибки
-ssh flomaster@192.168.1.74 "docker logs resource-manager-backend --tail 100"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "docker logs resource-manager-backend --tail 100"
 
 # Проверить подключение к БД
-ssh flomaster@192.168.1.74 "docker exec resource-manager-db pg_isready -U resourceuser -d resourcedb"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "docker exec resource-manager-db pg_isready -U resourceuser -d resourcedb"
 
 # Пересобрать backend
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose up -d --build backend"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose up -d --build backend"
 ```
 
 ### Ошибки миграций Flyway
 
 ```bash
 # Проверить статус миграций
-ssh flomaster@192.168.1.74 "docker exec resource-manager-db psql -U resourceuser -d resourcedb -c 'SELECT * FROM flyway_schema_history ORDER BY installed_rank;'"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "docker exec resource-manager-db psql -U resourceuser -d resourcedb -c 'SELECT * FROM flyway_schema_history ORDER BY installed_rank;'"
 
 # Последние миграции
-ssh flomaster@192.168.1.74 "docker exec resource-manager-db psql -U resourceuser -d resourcedb -c 'SELECT installed_rank, version, description, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;'"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "docker exec resource-manager-db psql -U resourceuser -d resourcedb -c 'SELECT installed_rank, version, description, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;'"
 ```
 
 ### Очистка и полная пересборка
 
 ```bash
 # ОСТОРОЖНО: удаляет volumes с данными БД!
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose down -v && docker system prune -af && docker-compose up -d --build"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose down -v && docker system prune -af && docker-compose up -d --build"
 ```
 
 ---
@@ -267,16 +285,16 @@ Last Deploy: 2026-01-21 (Phase 7: Tech Stacks)
 
 ```bash
 # === DEPLOYMENT === #
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && git pull && docker-compose up -d --build"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && git pull && docker-compose up -d --build"
 
 # === STATUS === #
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose ps"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose ps"
 
 # === LOGS === #
-ssh flomaster@192.168.1.74 "docker logs resource-manager-backend --tail 50"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "docker logs resource-manager-backend --tail 50"
 
 # === RESTART === #
-ssh flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose restart"
+ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no flomaster@192.168.1.74 "cd ~/projects/birzha && docker-compose restart"
 
 # === TEST API === #
 curl http://192.168.1.74:31081/api/auth/login \
