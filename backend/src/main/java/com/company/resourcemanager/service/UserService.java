@@ -3,13 +3,17 @@ package com.company.resourcemanager.service;
 import com.company.resourcemanager.dto.CreateUserRequest;
 import com.company.resourcemanager.dto.UpdateUserRequest;
 import com.company.resourcemanager.dto.UserDto;
+import com.company.resourcemanager.entity.Dzo;
+import com.company.resourcemanager.entity.Role;
 import com.company.resourcemanager.entity.User;
+import com.company.resourcemanager.repository.DzoRepository;
 import com.company.resourcemanager.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,6 +23,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final DzoRepository dzoRepository;
 
     public List<UserDto> getAllUsers() {
         return userRepository.findAll()
@@ -39,14 +44,32 @@ public class UserService {
             throw new IllegalArgumentException("Username already exists");
         }
 
+        Dzo dzo = null;
+        if (request.getDzoId() != null) {
+            dzo = dzoRepository.findById(request.getDzoId())
+                    .orElseThrow(() -> new IllegalArgumentException("DZO not found"));
+        }
+
         User user = User.builder()
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role(User.Role.valueOf(request.getRole()))
+                .userRoles(new HashSet<>())
                 .createdBy(currentUser)
+                .dzo(dzo)
                 .build();
 
         User saved = userRepository.save(user);
+
+        for (String roleName : request.getRoles()) {
+            try {
+                Role role = Role.valueOf(roleName);
+                saved.addRole(role);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid role: " + roleName);
+            }
+        }
+
+        saved = userRepository.save(saved);
         return UserDto.fromEntity(saved);
     }
 
@@ -59,8 +82,22 @@ public class UserService {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
-        if (request.getRole() != null) {
-            user.setRole(User.Role.valueOf(request.getRole()));
+        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+            user.getUserRoles().clear();
+            for (String roleName : request.getRoles()) {
+                try {
+                    Role role = Role.valueOf(roleName);
+                    user.addRole(role);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid role: " + roleName);
+                }
+            }
+        }
+
+        if (request.getDzoId() != null) {
+            Dzo dzo = dzoRepository.findById(request.getDzoId())
+                    .orElseThrow(() -> new IllegalArgumentException("DZO not found"));
+            user.setDzo(dzo);
         }
 
         User saved = userRepository.save(user);

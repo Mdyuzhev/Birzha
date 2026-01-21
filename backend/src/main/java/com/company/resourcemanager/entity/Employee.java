@@ -38,6 +38,10 @@ public class Employee {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dzo_id")
+    private Dzo dzo;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

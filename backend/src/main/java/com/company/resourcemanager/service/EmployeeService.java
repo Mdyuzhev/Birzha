@@ -28,10 +28,19 @@ public class EmployeeService {
     private final AuthService authService;
     private final CustomFieldsValidator customFieldsValidator;
     private final FullNameValidator fullNameValidator;
+    private final CurrentUserService currentUserService;
 
     public Page<EmployeeDto> findAll(Map<String, String> filters, Map<String, String> customFields,
                                        Map<String, String> dateFilters, Pageable pageable) {
         Specification<Employee> spec = Specification.where(null);
+
+        // Фильтрация по ДЗО (если пользователь не системный админ)
+        if (!currentUserService.isSystemAdmin()) {
+            Long dzoId = currentUserService.getCurrentDzoId();
+            if (dzoId != null) {
+                spec = spec.and((root, query, cb) -> cb.equal(root.get("dzo").get("id"), dzoId));
+            }
+        }
 
         if (filters != null) {
             for (Map.Entry<String, String> entry : filters.entrySet()) {
@@ -133,10 +142,13 @@ public class EmployeeService {
         // Валидация customFields
         customFieldsValidator.validate(request.getCustomFields());
 
+        User currentUser = currentUserService.getCurrentUser();
+
         Employee employee = Employee.builder()
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .customFields(request.getCustomFields() != null ? request.getCustomFields() : new HashMap<>())
+                .dzo(currentUser.getDzo())
                 .build();
 
         employee = employeeRepository.save(employee);

@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Data
 @Builder
@@ -15,15 +17,25 @@ import java.time.LocalDateTime;
 public class UserDto {
     private Long id;
     private String username;
-    private String role;
+    private Set<String> roles;
+    private Long dzoId;
     private LocalDateTime createdAt;
     private String createdByUsername;
 
+    @Deprecated
+    private String role;
+
     public static UserDto fromEntity(User entity) {
+        Set<String> roleNames = entity.getRoles().stream()
+                .map(Enum::name)
+                .collect(Collectors.toSet());
+
         return UserDto.builder()
                 .id(entity.getId())
                 .username(entity.getUsername())
-                .role(entity.getRole().name())
+                .roles(roleNames)
+                .dzoId(entity.getDzo() != null ? entity.getDzo().getId() : null)
+                .role(roleNames.isEmpty() ? null : roleNames.iterator().next())
                 .createdAt(entity.getCreatedAt())
                 .createdByUsername(entity.getCreatedBy() != null ? entity.getCreatedBy().getUsername() : null)
                 .build();

@@ -38,7 +38,8 @@ public class AuthService {
         }
 
         // Check if user already has active session (only for non-admin users)
-        if (user.getRole() != User.Role.ADMIN) {
+        boolean isSystemAdmin = user.hasRole(com.company.resourcemanager.entity.Role.SYSTEM_ADMIN);
+        if (!isSystemAdmin) {
             userSessionRepository.findByUserId(user.getId()).ifPresent(session -> {
                 // Check if session is still active (last activity within timeout)
                 if (session.getLastActivity().plusMinutes(SESSION_TIMEOUT_MINUTES).isAfter(LocalDateTime.now())) {
@@ -53,7 +54,7 @@ public class AuthService {
         }
         userSessionRepository.flush();
 
-        String token = tokenProvider.generateToken(user.getUsername(), user.getRole().name());
+        String token = tokenProvider.generateToken(user.getUsername(), user.getRoles());
 
         // Create new session
         UserSession session = UserSession.builder()
@@ -62,10 +63,16 @@ public class AuthService {
                 .build();
         userSessionRepository.save(session);
 
+        java.util.Set<String> roleNames = user.getRoles().stream()
+                .map(Enum::name)
+                .collect(java.util.stream.Collectors.toSet());
+
         return LoginResponse.builder()
                 .token(token)
                 .username(user.getUsername())
-                .role(user.getRole().name())
+                .roles(roleNames)
+                .dzoId(user.getDzo() != null ? user.getDzo().getId() : null)
+                .role(roleNames.isEmpty() ? null : roleNames.iterator().next())
                 .build();
     }
 
@@ -74,12 +81,7 @@ public class AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
-        return UserDto.builder()
-                .id(user.getId())
-                .username(user.getUsername())
-                .role(user.getRole().name())
-                .createdAt(user.getCreatedAt())
-                .build();
+        return UserDto.fromEntity(user);
     }
 
     public User getCurrentUserEntity() {

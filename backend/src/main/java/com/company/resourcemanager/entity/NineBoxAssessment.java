@@ -56,6 +56,10 @@ public class NineBoxAssessment {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dzo_id")
+    private Dzo dzo;
+
     @PrePersist
     protected void onCreate() {
         assessedAt = LocalDateTime.now();

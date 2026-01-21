@@ -1,9 +1,11 @@
 package com.company.resourcemanager.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+
+import java.util.Set;
 
 @Data
 public class CreateUserRequest {
@@ -15,7 +17,8 @@ public class CreateUserRequest {
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
 
-    @NotBlank(message = "Role is required")
-    @Pattern(regexp = "^(ADMIN|USER)$", message = "Role must be ADMIN or USER")
-    private String role;
+    @NotEmpty(message = "At least one role is required")
+    private Set<String> roles;
+
+    private Long dzoId;
 }
