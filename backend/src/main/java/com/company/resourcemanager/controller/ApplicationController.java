@@ -104,6 +104,22 @@ public class ApplicationController {
         return ResponseEntity.ok(applicationService.getStats());
     }
 
+    // === Назначение согласующих ===
+
+    @PostMapping("/{id}/assign-hr-bp")
+    public ResponseEntity<ApplicationDto> assignHrBp(
+            @PathVariable Long id,
+            @RequestParam Long hrBpId) {
+        return ResponseEntity.ok(applicationService.assignHrBp(id, hrBpId));
+    }
+
+    @PostMapping("/{id}/assign-borup")
+    public ResponseEntity<ApplicationDto> assignBorup(
+            @PathVariable Long id,
+            @RequestParam Long borupId) {
+        return ResponseEntity.ok(applicationService.assignBorup(id, borupId));
+    }
+
     // === Статусы ===
 
     @GetMapping("/statuses")

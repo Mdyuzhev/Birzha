@@ -258,6 +258,67 @@ public class ApplicationService {
             .build();
     }
 
+    // === Назначение согласующих ===
+
+    public ApplicationDto assignHrBp(Long applicationId, Long hrBpId) {
+        Application app = findByIdWithAccessCheck(applicationId);
+        User currentUser = currentUserService.getCurrentUser();
+
+        // Рекрутер или создатель могут назначить HR BP
+        boolean canAssign = (app.getRecruiter() != null && app.getRecruiter().getId().equals(currentUser.getId()))
+            || app.getCreatedBy().getId().equals(currentUser.getId())
+            || currentUser.hasRole(Role.DZO_ADMIN)
+            || currentUser.hasRole(Role.SYSTEM_ADMIN);
+
+        if (!canAssign) {
+            throw new AccessDeniedException("No permission to assign HR BP");
+        }
+
+        User hrBp = userRepository.findById(hrBpId)
+            .orElseThrow(() -> new ResourceNotFoundException("HR BP not found"));
+
+        if (!hrBp.hasRole(Role.HR_BP)) {
+            throw new BusinessException("User is not HR BP");
+        }
+
+        app.setHrBp(hrBp);
+        app = applicationRepository.save(app);
+
+        recordHistory(app, app.getStatus(), app.getStatus(), "ASSIGN_HR_BP",
+            "Назначен HR BP: " + hrBp.getUsername());
+
+        return toDto(app);
+    }
+
+    public ApplicationDto assignBorup(Long applicationId, Long borupId) {
+        Application app = findByIdWithAccessCheck(applicationId);
+        User currentUser = currentUserService.getCurrentUser();
+
+        // Только рекрутер или админ
+        boolean canAssign = (app.getRecruiter() != null && app.getRecruiter().getId().equals(currentUser.getId()))
+            || currentUser.hasRole(Role.DZO_ADMIN)
+            || currentUser.hasRole(Role.SYSTEM_ADMIN);
+
+        if (!canAssign) {
+            throw new AccessDeniedException("No permission to assign BORUP");
+        }
+
+        User borup = userRepository.findById(borupId)
+            .orElseThrow(() -> new ResourceNotFoundException("BORUP not found"));
+
+        if (!borup.hasRole(Role.BORUP)) {
+            throw new BusinessException("User is not BORUP");
+        }
+
+        app.setBorup(borup);
+        app = applicationRepository.save(app);
+
+        recordHistory(app, app.getStatus(), app.getStatus(), "ASSIGN_BORUP",
+            "Назначен БОРУП: " + borup.getUsername());
+
+        return toDto(app);
+    }
+
     // === Вспомогательные методы ===
 
     private Application findByIdWithAccessCheck(Long id) {
