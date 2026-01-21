@@ -3,7 +3,7 @@
 **Карта архитектуры проекта**
 **Дата создания:** 2026-01-21
 **Последнее обновление:** 2026-01-21
-**Версия:** 1.2.0
+**Версия:** 1.3.0
 
 ---
 
@@ -2464,6 +2464,160 @@ projectsStore.fetchProjects()
 
 ---
 
+## 9. Модуль заявок (Applications) - Phase 3
+
+### Назначение
+
+Модуль заявок на развитие и ротацию сотрудников. Основная функциональность системы "Биржа талантов", позволяющая управлять жизненным циклом заявок от создания до перевода/увольнения.
+
+### Сущности
+
+#### Application (applications)
+- `id` — BIGINT, PK
+- `dzo_id` — BIGINT, FK → dzos (NOT NULL)
+- `employee_id` — BIGINT, FK → employees (NOT NULL)
+- `created_by` — BIGINT, FK → users (NOT NULL)
+- `status` — VARCHAR(50), NOT NULL, DEFAULT 'DRAFT'
+- `target_position` — VARCHAR(255)
+- `target_stack` — VARCHAR(100)
+- `current_salary` — DECIMAL(12, 2)
+- `target_salary` — DECIMAL(12, 2)
+- `salary_increase_percent` — DECIMAL(5, 2) — автоматически рассчитывается
+- `requires_borup_approval` — BOOLEAN, NOT NULL, DEFAULT false — автоматически определяется при увеличении ЗП >30%
+- `resume_file_path` — VARCHAR(500)
+- `comment` — TEXT
+- `recruiter_id` — BIGINT, FK → users
+- `assigned_to_recruiter_at` — TIMESTAMP
+- `hr_bp_id` — BIGINT, FK → users
+- `borup_id` — BIGINT, FK → users
+- `hr_bp_decision` — VARCHAR(20) — PENDING, APPROVED, REJECTED
+- `hr_bp_comment` — TEXT
+- `hr_bp_decision_at` — TIMESTAMP
+- `borup_decision` — VARCHAR(20)
+- `borup_comment` — TEXT
+- `borup_decision_at` — TIMESTAMP
+- `final_comment` — TEXT
+- `transfer_date` — DATE
+- `completed_at` — TIMESTAMP
+- `created_at` — TIMESTAMP, NOT NULL
+- `updated_at` — TIMESTAMP, NOT NULL
+
+#### ApplicationHistory (application_history)
+- `id` — BIGINT, PK
+- `application_id` — BIGINT, FK → applications (ON DELETE CASCADE)
+- `changed_by` — BIGINT, FK → users (NOT NULL)
+- `changed_at` — TIMESTAMP, NOT NULL
+- `old_status` — VARCHAR(50)
+- `new_status` — VARCHAR(50)
+- `action` — VARCHAR(100), NOT NULL — CREATE, UPDATE, STATUS_CHANGE, ASSIGN_RECRUITER, HR_BP_DECISION, BORUP_DECISION
+- `comment` — TEXT
+- `details` — TEXT (JSON)
+
+### Статусы заявок (ApplicationStatus)
+
+| Статус | Описание |
+|--------|----------|
+| DRAFT | Черновик |
+| AVAILABLE_FOR_REVIEW | Свободен для рассмотрения |
+| IN_PROGRESS | В работе (рекрутер) |
+| INTERVIEW | На собеседовании |
+| PENDING_HR_BP | Ожидает согласования HR BP |
+| APPROVED_HR_BP | Согласован HR BP |
+| REJECTED_HR_BP | Отклонён HR BP |
+| PENDING_BORUP | Ожидает согласования БОРУП (если ЗП >30%) |
+| APPROVED_BORUP | Согласован БОРУП |
+| REJECTED_BORUP | Отклонён БОРУП |
+| PREPARING_TRANSFER | Готовится к переводу |
+| TRANSFERRED | Переведён (финальный) |
+| DISMISSED | Увольнение (финальный) |
+| CANCELLED | Отменена (финальный) |
+
+### API Endpoints (/api/applications)
+
+#### Основные операции
+- `GET /api/applications` — список заявок с фильтрацией и пагинацией
+- `GET /api/applications/{id}` — одна заявка по ID
+- `POST /api/applications` — создание заявки (требует роль MANAGER или HR_BP)
+- `PUT /api/applications/{id}` — обновление заявки (только в статусе DRAFT/AVAILABLE_FOR_REVIEW)
+- `DELETE /api/applications/{id}` — удаление заявки (только DRAFT)
+
+#### Специализированные эндпоинты
+- `GET /api/applications/my` — мои заявки (MANAGER, HR_BP)
+- `GET /api/applications/assigned` — назначенные мне заявки (RECRUITER)
+- `GET /api/applications/pending-approval` — ожидающие моего согласования (HR_BP, BORUP)
+- `GET /api/applications/{id}/history` — история изменений заявки
+- `GET /api/applications/stats` — статистика (SYSTEM_ADMIN, DZO_ADMIN, RECRUITER)
+- `GET /api/applications/statuses` — список статусов
+
+### Бизнес-правила
+
+1. **Создание заявки:**
+   - Только MANAGER или HR_BP могут создавать заявки
+   - Нельзя создать вторую активную заявку на одного сотрудника
+   - Автоматически рассчитывается `salaryIncreasePercent`
+   - Автоматически определяется `requiresBorupApproval` (если увеличение >30%)
+   - Статус по умолчанию: AVAILABLE_FOR_REVIEW
+
+2. **Редактирование:**
+   - Можно редактировать только в статусах DRAFT или AVAILABLE_FOR_REVIEW
+   - Могут редактировать: создатель или назначенный рекрутер
+
+3. **Удаление:**
+   - Можно удалить только черновик (DRAFT)
+   - Могут удалять: создатель, SYSTEM_ADMIN, DZO_ADMIN
+
+4. **Проверка доступа:**
+   - Пользователь видит только заявки своего ДЗО
+   - SYSTEM_ADMIN видит все заявки
+   - HR BP с назначением на ДЗО видит заявки этого ДЗО
+
+### Миграции
+
+- `V19__create_applications_table.sql` — создание таблицы applications с индексами
+- `V20__create_application_history_table.sql` — создание таблицы application_history
+
+### Service Layer
+
+**ApplicationService:**
+- `create(CreateApplicationRequest)` — создание заявки с проверкой прав и бизнес-правил
+- `update(Long id, UpdateApplicationRequest)` — обновление с валидацией статуса
+- `delete(Long id)` — удаление с проверкой прав
+- `getById(Long id)` — получение с проверкой доступа по ДЗО
+- `getAll(ApplicationFilterRequest, Pageable)` — список с фильтрацией
+- `getMyApplications(Pageable)` — мои созданные заявки
+- `getAssignedToMe(Pageable)` — заявки, назначенные мне
+- `getPendingMyApproval(Pageable)` — заявки на моё согласование
+- `getHistory(Long applicationId)` — история изменений
+- `getStats()` — статистика по статусам и стекам
+- `toDto(Application)` — преобразование в DTO
+- `recordHistory(...)` — запись в историю изменений
+
+### Изменения в смежных компонентах
+
+#### User.java
+Добавлены методы:
+- `isSystemAdmin()` — проверка наличия роли SYSTEM_ADMIN
+- `isDzoAdmin()` — проверка наличия роли DZO_ADMIN
+
+#### RoleService.java
+Добавлен метод:
+- `canAccessDzo(User user, Long dzoId)` — проверка доступа к ДЗО
+
+#### JwtAuthenticationFilter.java
+Обновлён для поддержки множественных ролей:
+- Использует `getRolesFromToken()` вместо `getRoleFromToken()`
+- Преобразует все роли в authorities без префикса ROLE_
+
+#### ApplicationController.java
+Использует `@PreAuthorize` с `hasAuthority` вместо `hasRole`
+
+#### GlobalExceptionHandler.java
+Добавлена обработка:
+- `BusinessException` — HTTP 400
+- `AccessDeniedException` — HTTP 403
+
+---
+
 ### Идеи для улучшения (TODO/FIXME из кода)
 
 *Grep по проекту показывает следующие TODO:*
@@ -2513,6 +2667,17 @@ projectsStore.fetchProjects()
 - ✅ Миграции V17 и V18 с автоматической конвертацией ADMIN→SYSTEM_ADMIN, USER→MANAGER
 - ✅ Обратная совместимость с старой системой ролей
 
+**Изменения в версии 1.3.0 (Phase 3 - Заявки Backend):**
+- ✅ Модуль заявок (Applications) с полным жизненным циклом
+- ✅ 14 статусов заявки от DRAFT до TRANSFERRED/DISMISSED
+- ✅ Автоматический расчёт процента увеличения ЗП и флага requiresBorupApproval
+- ✅ История изменений заявок (ApplicationHistory)
+- ✅ API endpoints: CRUD + специализированные (my, assigned, pending-approval, stats)
+- ✅ Бизнес-правила: проверка дублирования, права доступа, валидация статусов
+- ✅ Миграции V19 и V20 для таблиц applications и application_history
+- ✅ Обновление JwtAuthenticationFilter для множественных ролей
+- ✅ Обработка BusinessException и AccessDeniedException в GlobalExceptionHandler
+
 Система готова к production использованию с учётом следующих доработок:
 - Изменить JWT_SECRET и DB_PASSWORD
 - Настроить HTTPS
@@ -2524,4 +2689,4 @@ projectsStore.fetchProjects()
 
 **Дата актуальности:** 2026-01-21
 **Автор документа:** Claude Code Agent
-**Версия системы:** 1.2.0 (Phase 2: Расширенная система ролей + мультитенантность)
+**Версия системы:** 1.3.0 (Phase 3: Модуль заявок — Backend)

@@ -82,4 +82,24 @@ public class RoleService {
     public List<User> getHrBpsForDzo(Long dzoId) {
         return hrBpAssignmentRepository.findUsersByDzoId(dzoId);
     }
+
+    @Transactional(readOnly = true)
+    public boolean canAccessDzo(User user, Long dzoId) {
+        // SYSTEM_ADMIN has access to all DZOs
+        if (user.isSystemAdmin()) {
+            return true;
+        }
+
+        // User from the same DZO has access
+        if (user.getDzo() != null && user.getDzo().getId().equals(dzoId)) {
+            return true;
+        }
+
+        // HR BP with assignment to this DZO has access
+        if (user.hasRole(Role.HR_BP)) {
+            return hrBpAssignmentRepository.existsByUserIdAndDzoId(user.getId(), dzoId);
+        }
+
+        return false;
+    }
 }

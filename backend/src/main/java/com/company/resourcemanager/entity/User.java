@@ -71,6 +71,14 @@ public class User {
         userRoles.removeIf(ur -> ur.getRole() == role);
     }
 
+    public boolean isSystemAdmin() {
+        return hasRole(Role.SYSTEM_ADMIN);
+    }
+
+    public boolean isDzoAdmin() {
+        return hasRole(Role.DZO_ADMIN);
+    }
+
     @Deprecated
     public enum OldRole {
         ADMIN, USER
