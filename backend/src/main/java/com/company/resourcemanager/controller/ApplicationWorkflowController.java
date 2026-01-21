@@ -30,7 +30,7 @@ public class ApplicationWorkflowController {
     // === Рекрутер берёт в работу ===
 
     @PostMapping("/{id}/assign-recruiter")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAuthority('RECRUITER')")
     public ResponseEntity<ApplicationDto> assignRecruiter(
             @PathVariable Long id,
             @RequestParam(required = false) String comment) {
@@ -40,7 +40,7 @@ public class ApplicationWorkflowController {
     // === Начало собеседования ===
 
     @PostMapping("/{id}/start-interview")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAuthority('RECRUITER')")
     public ResponseEntity<ApplicationDto> startInterview(
             @PathVariable Long id,
             @RequestParam(required = false) String comment) {
@@ -50,7 +50,7 @@ public class ApplicationWorkflowController {
     // === Отправка на согласование HR BP ===
 
     @PostMapping("/{id}/send-to-hr-bp")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAuthority('RECRUITER')")
     public ResponseEntity<ApplicationDto> sendToHrBpApproval(
             @PathVariable Long id,
             @RequestBody(required = false) SendToApprovalRequest request) {
@@ -64,7 +64,7 @@ public class ApplicationWorkflowController {
     // === Решение HR BP ===
 
     @PostMapping("/{id}/approve-hr-bp")
-    @PreAuthorize("hasRole('HR_BP')")
+    @PreAuthorize("hasAuthority('HR_BP')")
     public ResponseEntity<ApplicationDto> approveByHrBp(
             @PathVariable Long id,
             @RequestBody(required = false) ApprovalDecisionRequest request) {
@@ -77,7 +77,7 @@ public class ApplicationWorkflowController {
     }
 
     @PostMapping("/{id}/reject-hr-bp")
-    @PreAuthorize("hasRole('HR_BP')")
+    @PreAuthorize("hasAuthority('HR_BP')")
     public ResponseEntity<ApplicationDto> rejectByHrBp(
             @PathVariable Long id,
             @Valid @RequestBody ApprovalDecisionRequest request) {
@@ -89,7 +89,7 @@ public class ApplicationWorkflowController {
     // === Отправка на согласование БОРУП ===
 
     @PostMapping("/{id}/send-to-borup")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAuthority('RECRUITER')")
     public ResponseEntity<ApplicationDto> sendToBorupApproval(
             @PathVariable Long id,
             @RequestBody(required = false) SendToApprovalRequest request) {
@@ -103,7 +103,7 @@ public class ApplicationWorkflowController {
     // === Решение БОРУП ===
 
     @PostMapping("/{id}/approve-borup")
-    @PreAuthorize("hasRole('BORUP')")
+    @PreAuthorize("hasAuthority('BORUP')")
     public ResponseEntity<ApplicationDto> approveByBorup(
             @PathVariable Long id,
             @RequestBody(required = false) ApprovalDecisionRequest request) {
@@ -116,7 +116,7 @@ public class ApplicationWorkflowController {
     }
 
     @PostMapping("/{id}/reject-borup")
-    @PreAuthorize("hasRole('BORUP')")
+    @PreAuthorize("hasAuthority('BORUP')")
     public ResponseEntity<ApplicationDto> rejectByBorup(
             @PathVariable Long id,
             @Valid @RequestBody ApprovalDecisionRequest request) {
@@ -128,7 +128,7 @@ public class ApplicationWorkflowController {
     // === Подготовка к переводу ===
 
     @PostMapping("/{id}/prepare-transfer")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAuthority('RECRUITER')")
     public ResponseEntity<ApplicationDto> prepareTransfer(
             @PathVariable Long id,
             @RequestParam(required = false) String comment) {
@@ -138,7 +138,7 @@ public class ApplicationWorkflowController {
     // === Завершение перевода ===
 
     @PostMapping("/{id}/complete-transfer")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAuthority('RECRUITER')")
     public ResponseEntity<ApplicationDto> completeTransfer(
             @PathVariable Long id,
             @Valid @RequestBody CompleteTransferRequest request) {
@@ -173,7 +173,7 @@ public class ApplicationWorkflowController {
     // === Возврат на доработку ===
 
     @PostMapping("/{id}/return-to-hr-bp")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAuthority('RECRUITER')")
     public ResponseEntity<ApplicationDto> returnToHrBp(
             @PathVariable Long id,
             @RequestParam(required = false) String comment) {
@@ -181,7 +181,7 @@ public class ApplicationWorkflowController {
     }
 
     @PostMapping("/{id}/return-to-borup")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAuthority('RECRUITER')")
     public ResponseEntity<ApplicationDto> returnToBorup(
             @PathVariable Long id,
             @RequestParam(required = false) String comment) {

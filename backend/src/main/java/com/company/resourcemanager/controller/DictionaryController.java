@@ -39,7 +39,7 @@ public class DictionaryController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<DictionaryDto> createDictionary(@Valid @RequestBody CreateDictionaryRequest request) {
         Dictionary dictionary = Dictionary.builder()
                 .name(request.getName())
@@ -52,7 +52,7 @@ public class DictionaryController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<DictionaryDto> updateDictionary(@PathVariable Long id, @Valid @RequestBody CreateDictionaryRequest request) {
         return dictionaryRepository.findById(id)
                 .map(dictionary -> {
@@ -66,7 +66,7 @@ public class DictionaryController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<Void> deleteDictionary(@PathVariable Long id) {
         if (!dictionaryRepository.existsById(id)) {
             return ResponseEntity.notFound().build();

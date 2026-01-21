@@ -26,6 +26,7 @@ jwt:
 logging:
   level:
     com.company.resourcemanager: DEBUG
+    org.springframework.security: DEBUG
 
 management:
   endpoints:

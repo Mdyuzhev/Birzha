@@ -22,8 +22,8 @@ export const useApplicationsStore = defineStore('applications', () => {
     error.value = null
     try {
       const response = await applicationsApi.getAll(params)
-      applications.value = response.data
-      return response.data
+      applications.value = response.data.content || response.data
+      return response.data.content || response.data
     } catch (e) {
       error.value = e.message
       throw e
@@ -106,8 +106,8 @@ export const useApplicationsStore = defineStore('applications', () => {
     error.value = null
     try {
       const response = await applicationsApi.getMy(params)
-      applications.value = response.data
-      return response.data
+      applications.value = response.data.content || response.data
+      return response.data.content || response.data
     } catch (e) {
       error.value = e.message
       throw e
@@ -121,8 +121,8 @@ export const useApplicationsStore = defineStore('applications', () => {
     error.value = null
     try {
       const response = await applicationsApi.getAssigned(params)
-      applications.value = response.data
-      return response.data
+      applications.value = response.data.content || response.data
+      return response.data.content || response.data
     } catch (e) {
       error.value = e.message
       throw e
@@ -136,8 +136,8 @@ export const useApplicationsStore = defineStore('applications', () => {
     error.value = null
     try {
       const response = await applicationsApi.getPendingApproval(params)
-      applications.value = response.data
-      return response.data
+      applications.value = response.data.content || response.data
+      return response.data.content || response.data
     } catch (e) {
       error.value = e.message
       throw e

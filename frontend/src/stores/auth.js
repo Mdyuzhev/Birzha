@@ -7,14 +7,15 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
 
   const isAuthenticated = computed(() => !!token.value)
-  const isAdmin = computed(() => user.value?.role === 'ADMIN')
+  const isAdmin = computed(() => user.value?.roles?.includes('SYSTEM_ADMIN'))
 
   async function login(username, password) {
     const response = await authApi.login(username, password)
     token.value = response.data.token
     user.value = {
       username: response.data.username,
-      role: response.data.role
+      role: response.data.role,
+      roles: response.data.roles
     }
     localStorage.setItem('token', token.value)
     return response.data

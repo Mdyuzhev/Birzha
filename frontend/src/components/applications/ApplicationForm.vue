@@ -15,7 +15,7 @@
         <el-option
           v-for="emp in employees"
           :key="emp.id"
-          :label="`${emp.lastName} ${emp.firstName} ${emp.middleName || ''}`"
+          :label="emp.fullName"
           :value="emp.id"
         />
       </el-select>
@@ -221,8 +221,10 @@ watch(() => props.application, (newVal) => {
 
 async function fetchEmployees() {
   try {
-    const response = await client.get('/employees')
-    employees.value = response.data
+    const response = await client.get('/employees', {
+      params: { size: 1000 }
+    })
+    employees.value = response.data.content || []
   } catch (error) {
     ElMessage.error('Ошибка загрузки списка сотрудников')
   }
@@ -233,7 +235,8 @@ async function fetchTechStacks() {
   try {
     await techStackStore.fetchDirections(true)
   } catch (error) {
-    ElMessage.error('Ошибка загрузки технологических стеков')
+    // Игнорируем ошибку - tech stacks опциональны
+    console.warn('Tech stacks API не доступен:', error.message)
   } finally {
     techStacksLoading.value = false
   }

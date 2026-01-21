@@ -6,6 +6,7 @@ import { useThemeStore } from '@/stores/theme'
 import { usersApi } from '@/api/users'
 import { dictionariesApi } from '@/api/dictionaries'
 import { columnsApi } from '@/api/columns'
+import { dzosApi } from '@/api/dzos'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
@@ -23,8 +24,13 @@ const selectedUser = ref(null)
 const userForm = ref({
   username: '',
   password: '',
-  role: 'USER'
+  roles: ['MANAGER'],
+  dzoId: null
 })
+
+// DZO
+const dzos = ref([])
+const dzosLoading = ref(false)
 
 // Dictionaries
 const dictionaries = ref([])
@@ -61,6 +67,27 @@ const fieldTypes = [
   { value: 'NUMBER', label: 'Число' }
 ]
 
+const availableRoles = [
+  { value: 'SYSTEM_ADMIN', label: 'Администратор системы', description: 'Полный доступ ко всем ДЗО' },
+  { value: 'DZO_ADMIN', label: 'Администратор ДЗО', description: 'Управление своим ДЗО' },
+  { value: 'RECRUITER', label: 'Рекрутер', description: 'Обработка заявок' },
+  { value: 'HR_BP', label: 'HR BP', description: 'Согласование заявок' },
+  { value: 'BORUP', label: 'БОРУП', description: 'Согласование при ЗП >30%' },
+  { value: 'MANAGER', label: 'Руководитель', description: 'Подача заявок' }
+]
+
+function getRoleLabel(roleCode) {
+  const role = availableRoles.find(r => r.value === roleCode)
+  return role ? role.label : roleCode
+}
+
+function getRoleType(roleCode) {
+  if (roleCode === 'SYSTEM_ADMIN') return 'danger'
+  if (roleCode === 'DZO_ADMIN') return 'warning'
+  if (roleCode === 'HR_BP' || roleCode === 'BORUP') return 'success'
+  return 'info'
+}
+
 async function fetchUsers() {
   usersLoading.value = true
   try {
@@ -70,6 +97,18 @@ async function fetchUsers() {
     ElMessage.error('Ошибка загрузки пользователей')
   } finally {
     usersLoading.value = false
+  }
+}
+
+async function fetchDzos() {
+  dzosLoading.value = true
+  try {
+    const response = await dzosApi.getAll()
+    dzos.value = response.data
+  } catch (error) {
+    ElMessage.error('Ошибка загрузки ДЗО')
+  } finally {
+    dzosLoading.value = false
   }
 }
 
@@ -95,13 +134,15 @@ function openUserDialog(user = null) {
     userForm.value = {
       username: user.username,
       password: '',
-      role: user.role
+      roles: user.roles ? [...user.roles] : ['MANAGER'],
+      dzoId: user.dzoId || null
     }
   } else {
     userForm.value = {
       username: '',
       password: '',
-      role: 'USER'
+      roles: ['MANAGER'],
+      dzoId: null
     }
   }
   userDialogVisible.value = true
@@ -114,14 +155,21 @@ function openEditUserDialog() {
 
 async function saveUser() {
   try {
+    const data = {
+      roles: userForm.value.roles,
+      dzoId: userForm.value.dzoId
+    }
+
     if (editingUser.value) {
-      await usersApi.update(editingUser.value.id, {
-        password: userForm.value.password || null,
-        role: userForm.value.role
-      })
+      if (userForm.value.password) {
+        data.password = userForm.value.password
+      }
+      await usersApi.update(editingUser.value.id, data)
       ElMessage.success('Пользователь обновлен')
     } else {
-      await usersApi.create(userForm.value)
+      data.username = userForm.value.username
+      data.password = userForm.value.password
+      await usersApi.create(data)
       ElMessage.success('Пользователь создан')
     }
     userDialogVisible.value = false
@@ -321,8 +369,8 @@ function goBack() {
   router.push('/')
 }
 
-function handleLogout() {
-  authStore.logout()
+async function handleLogout() {
+  await authStore.logout()
   router.push('/login')
 }
 
@@ -335,6 +383,7 @@ watch(activeTab, () => {
 
 onMounted(() => {
   fetchUsers()
+  fetchDzos()
   fetchDictionaries()
   fetchColumns()
 })
@@ -442,15 +491,31 @@ onMounted(() => {
                 </template>
               </el-table-column>
               <el-table-column prop="id" label="ID" width="80" />
-              <el-table-column prop="username" label="Логин" width="200" />
-              <el-table-column prop="role" label="Роль" width="150">
+              <el-table-column prop="username" label="Логин" width="180" />
+              <el-table-column label="ДЗО" width="150">
                 <template #default="{ row }">
-                  <el-tag :type="row.role === 'ADMIN' ? 'danger' : 'info'">
-                    {{ row.role === 'ADMIN' ? 'Администратор' : 'Пользователь' }}
-                  </el-tag>
+                  <span v-if="row.dzoId">
+                    {{ dzos.find(d => d.id === row.dzoId)?.name || '—' }}
+                  </span>
+                  <span v-else class="text-muted">—</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="createdAt" label="Создан">
+              <el-table-column label="Роли">
+                <template #default="{ row }">
+                  <div class="user-roles">
+                    <el-tag
+                      v-for="role in row.roles"
+                      :key="role"
+                      size="small"
+                      :type="getRoleType(role)"
+                      class="role-tag"
+                    >
+                      {{ getRoleLabel(role) }}
+                    </el-tag>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="createdAt" label="Создан" width="180">
                 <template #default="{ row }">
                   {{ row.createdAt ? new Date(row.createdAt).toLocaleString('ru') : '—' }}
                 </template>
@@ -615,10 +680,29 @@ onMounted(() => {
             show-password
           />
         </el-form-item>
-        <el-form-item label="Роль">
-          <el-select v-model="userForm.role" style="width: 100%">
-            <el-option label="Пользователь (чтение)" value="USER" />
-            <el-option label="Администратор (полный доступ)" value="ADMIN" />
+        <el-form-item label="ДЗО">
+          <el-select v-model="userForm.dzoId" placeholder="Выберите ДЗО" clearable style="width: 100%">
+            <el-option
+              v-for="dzo in dzos"
+              :key="dzo.id"
+              :label="dzo.name"
+              :value="dzo.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="Роли" required>
+          <el-select v-model="userForm.roles" multiple placeholder="Выберите роли" style="width: 100%">
+            <el-option
+              v-for="role in availableRoles"
+              :key="role.value"
+              :label="role.label"
+              :value="role.value"
+            >
+              <div style="display: flex; flex-direction: column;">
+                <span>{{ role.label }}</span>
+                <span style="font-size: 12px; color: var(--text-muted);">{{ role.description }}</span>
+              </div>
+            </el-option>
           </el-select>
         </el-form-item>
       </el-form>
@@ -1072,6 +1156,16 @@ onMounted(() => {
 }
 
 .value-tag {
+  margin: 0 !important;
+}
+
+.user-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.role-tag {
   margin: 0 !important;
 }
 

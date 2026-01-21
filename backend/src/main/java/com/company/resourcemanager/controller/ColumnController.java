@@ -40,7 +40,7 @@ public class ColumnController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<ColumnDefinitionDto> createColumn(@Valid @RequestBody CreateColumnRequest request) {
         ColumnDefinition column = ColumnDefinition.builder()
                 .name(request.getName())
@@ -60,7 +60,7 @@ public class ColumnController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<ColumnDefinitionDto> updateColumn(@PathVariable Long id, @Valid @RequestBody CreateColumnRequest request) {
         return columnRepository.findById(id)
                 .map(column -> {
@@ -83,7 +83,7 @@ public class ColumnController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<Void> deleteColumn(@PathVariable Long id) {
         if (!columnRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
@@ -93,7 +93,7 @@ public class ColumnController {
     }
 
     @PutMapping("/reorder")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<List<ColumnDefinitionDto>> reorderColumns(@RequestBody List<Long> ids) {
         for (int i = 0; i < ids.size(); i++) {
             final int order = i;

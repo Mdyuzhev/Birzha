@@ -34,13 +34,13 @@ public class DzoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<DzoDto> create(@Valid @RequestBody CreateDzoRequest request) {
         return ResponseEntity.ok(toDto(dzoService.create(request)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     public ResponseEntity<DzoDto> update(@PathVariable Long id, @Valid @RequestBody UpdateDzoRequest request) {
         return ResponseEntity.ok(toDto(dzoService.update(id, request)));
     }

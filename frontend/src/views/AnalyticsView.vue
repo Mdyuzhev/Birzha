@@ -105,7 +105,7 @@ function goToAdmin() {
 }
 
 async function handleLogout() {
-  authStore.logout()
+  await authStore.logout()
   router.push('/login')
 }
 

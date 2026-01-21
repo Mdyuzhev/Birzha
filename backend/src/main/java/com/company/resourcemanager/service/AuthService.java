@@ -76,6 +76,7 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public UserDto getCurrentUser() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username)
