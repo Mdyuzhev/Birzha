@@ -61,6 +61,12 @@ const routes = [
     name: 'ApplicationDetail',
     component: () => import('@/views/ApplicationDetailView.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/tech-stacks',
+    name: 'TechStacks',
+    component: () => import('@/views/TechStacks.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

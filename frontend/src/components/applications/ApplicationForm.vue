@@ -40,6 +40,35 @@
       <el-input v-model="formData.targetDepartment" placeholder="Название подразделения" />
     </el-form-item>
 
+    <el-form-item label="Технологический стек">
+      <el-select
+        v-model="formData.techStackIds"
+        multiple
+        filterable
+        placeholder="Выберите стеки"
+        style="width: 100%"
+        :loading="techStacksLoading"
+      >
+        <el-option-group
+          v-for="direction in techDirections"
+          :key="direction.id"
+          :label="direction.name"
+        >
+          <el-option
+            v-for="stack in direction.stacks"
+            :key="stack.id"
+            :label="stack.name"
+            :value="stack.id"
+          >
+            <span>{{ stack.name }}</span>
+            <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+              {{ stack.code }}
+            </span>
+          </el-option>
+        </el-option-group>
+      </el-select>
+    </el-form-item>
+
     <el-form-item label="Текущая ЗП">
       <el-input-number
         v-model="formData.currentSalary"
@@ -104,6 +133,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '@/api/client'
+import { useTechStackStore } from '@/stores/techStack'
 
 const props = defineProps({
   application: {
@@ -120,14 +150,19 @@ const emit = defineEmits(['submit', 'cancel'])
 
 const formRef = ref(null)
 const employees = ref([])
+const techStackStore = useTechStackStore()
+const techStacksLoading = ref(false)
 
 const isEditMode = computed(() => !!props.application)
+
+const techDirections = computed(() => techStackStore.directions)
 
 const formData = reactive({
   employeeId: null,
   applicationType: 'DEVELOPMENT',
   targetPosition: '',
   targetDepartment: '',
+  techStackIds: [],
   currentSalary: 0,
   proposedSalary: 0,
   targetDate: null,
@@ -174,6 +209,7 @@ watch(() => props.application, (newVal) => {
       applicationType: newVal.applicationType,
       targetPosition: newVal.targetPosition,
       targetDepartment: newVal.targetDepartment,
+      techStackIds: newVal.techStackIds || [],
       currentSalary: newVal.currentSalary || 0,
       proposedSalary: newVal.proposedSalary || 0,
       targetDate: newVal.targetDate ? new Date(newVal.targetDate) : null,
@@ -189,6 +225,17 @@ async function fetchEmployees() {
     employees.value = response.data
   } catch (error) {
     ElMessage.error('Ошибка загрузки списка сотрудников')
+  }
+}
+
+async function fetchTechStacks() {
+  techStacksLoading.value = true
+  try {
+    await techStackStore.fetchDirections(true)
+  } catch (error) {
+    ElMessage.error('Ошибка загрузки технологических стеков')
+  } finally {
+    techStacksLoading.value = false
   }
 }
 
@@ -210,5 +257,6 @@ function handleCancel() {
 
 onMounted(() => {
   fetchEmployees()
+  fetchTechStacks()
 })
 </script>
