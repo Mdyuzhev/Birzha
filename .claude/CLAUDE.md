@@ -33,6 +33,7 @@
 |-----------|------------|--------|
 | **Backend** | Java, Spring Boot | 17, 3.2.5 |
 | **Security** | Spring Security, JWT | jjwt 0.12.3 |
+| **API Docs** | SpringDoc OpenAPI 3 | 2.3.0 |
 | **ORM** | Spring Data JPA, Hibernate | |
 | **Миграции** | Flyway | 10.10.0 |
 | **БД** | PostgreSQL | 15+ |
@@ -56,10 +57,49 @@
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-**Credentials:**
-- DB: `resourcedb` / `resourceuser` / `resourcepass`
+**Доступ:**
+- Frontend: http://localhost:31080
+- Backend API: http://localhost:31081
+- Swagger UI: http://localhost:31081/swagger-ui/index.html
+- PostgreSQL: localhost:31432
+
+**Учётные записи:**
 - Admin: `admin` / `admin123`
 - Test users: `user1`-`user10` / `user`
+
+---
+
+## Конфигурация и секреты
+
+**ВАЖНО:** Все чувствительные данные вынесены в переменные окружения.
+
+### Локальная разработка
+
+1. Скопируйте `.env.example` в `.env`:
+```bash
+cp .env.example .env
+```
+
+2. Заполните `.env` своими credentials:
+```env
+# Database
+POSTGRES_PASSWORD=your-secure-password
+
+# JWT
+JWT_SECRET=your-secret-key-minimum-32-chars
+
+# Email (опционально)
+MAIL_ENABLED=true
+MAIL_HOST=smtp.yandex.ru
+MAIL_USERNAME=your-email@yandex.ru
+MAIL_PASSWORD=your-app-password
+```
+
+3. Файл `.env` автоматически игнорируется git
+
+### Production
+
+На сервере credentials задаются через переменные окружения или Docker secrets.
 
 ---
 
@@ -212,6 +252,10 @@ E:\Birzha/
 ## Команды разработки
 
 ```bash
+# Первый запуск: создать .env файл
+cp .env.example .env
+# Отредактируйте .env и заполните credentials
+
 # Запуск всего стека
 cd E:\Birzha
 docker-compose up --build -d
@@ -232,6 +276,10 @@ docker logs resource-manager-frontend -f
 curl http://localhost:31081/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}'
+
+# Swagger UI (документация API)
+# Откройте в браузере: http://localhost:31081/swagger-ui/index.html
+# Для авторизации: Authorize → вставить JWT token без "Bearer "
 ```
 
 ---
