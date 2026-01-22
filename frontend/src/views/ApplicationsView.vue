@@ -132,15 +132,15 @@
           class="data-table"
           @row-click="handleRowClick"
         >
-          <el-table-column prop="id" label="ID" width="80" />
+          <el-table-column prop="id" label="ID" width="70" />
 
-          <el-table-column label="Сотрудник" min-width="220">
+          <el-table-column label="Сотрудник" min-width="280">
             <template #default="{ row }">
               {{ getEmployeeName(row) }}
             </template>
           </el-table-column>
 
-          <el-table-column label="Тип" width="120">
+          <el-table-column label="Тип" width="130">
             <template #default="{ row }">
               <el-tag :type="row.applicationType === 'DEVELOPMENT' ? 'success' : 'warning'" size="small">
                 {{ row.applicationType === 'DEVELOPMENT' ? 'Развитие' : 'Ротация' }}
@@ -148,9 +148,9 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="targetPosition" label="Целевая должность" width="180" show-overflow-tooltip />
+          <el-table-column prop="targetPosition" label="Целевая должность" min-width="220" show-overflow-tooltip />
 
-          <el-table-column label="ЗП" width="160">
+          <el-table-column label="ЗП" min-width="200">
             <template #default="{ row }">
               <div v-if="row.currentSalary && row.targetSalary" class="salary-cell">
                 <div class="salary-change">
@@ -164,13 +164,13 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Статус" width="200">
+          <el-table-column label="Статус" min-width="220">
             <template #default="{ row }">
               <ApplicationStatusBadge :status="row.status" />
             </template>
           </el-table-column>
 
-          <el-table-column label="Создано" width="120">
+          <el-table-column label="Создано" width="130">
             <template #default="{ row }">
               {{ formatDate(row.createdAt) }}
             </template>
@@ -181,7 +181,7 @@
           <el-pagination
             v-model:current-page="pagination.page"
             v-model:page-size="pagination.pageSize"
-            :page-sizes="[10, 20, 50]"
+            :page-sizes="[6, 12, 24]"
             :total="pagination.total"
             layout="total, sizes, prev, pager, next"
             @size-change="handleSizeChange"
@@ -230,7 +230,7 @@ const formLoading = ref(false)
 
 const pagination = ref({
   page: 1,
-  pageSize: 10,
+  pageSize: 6,
   total: 0
 })
 
