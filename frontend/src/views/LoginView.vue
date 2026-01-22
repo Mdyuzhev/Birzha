@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -14,6 +14,9 @@ const form = ref({
   password: ''
 })
 const loading = ref(false)
+const twoFactorCode = ref('')
+
+const showTwoFactor = computed(() => !!authStore.pendingTwoFactor)
 
 async function handleLogin() {
   if (!form.value.username || !form.value.password) {
@@ -23,9 +26,19 @@ async function handleLogin() {
 
   loading.value = true
   try {
-    await authStore.login(form.value.username, form.value.password)
-    ElMessage.success('Добро пожаловать!')
-    router.push('/')
+    const result = await authStore.login(form.value.username, form.value.password)
+
+    if (result.requiresTwoFactor) {
+      // Нужна 2FA — форма переключится автоматически
+      twoFactorCode.value = ''
+      loading.value = false
+      return
+    }
+
+    if (result.success) {
+      ElMessage.success('Добро пожаловать!')
+      router.push('/')
+    }
   } catch (error) {
     const message = error.response?.data?.message || error.response?.data?.error
     if (message && message.includes('занята')) {
@@ -36,6 +49,31 @@ async function handleLogin() {
   } finally {
     loading.value = false
   }
+}
+
+async function handleVerifyTwoFactor() {
+  if (twoFactorCode.value.length !== 6) return
+
+  loading.value = true
+  try {
+    const result = await authStore.verifyTwoFactor(twoFactorCode.value)
+
+    if (result.success) {
+      ElMessage.success('Добро пожаловать!')
+      router.push('/')
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Неверный код')
+    twoFactorCode.value = ''
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleCancelTwoFactor() {
+  authStore.cancelTwoFactor()
+  twoFactorCode.value = ''
+  form.value.password = ''
 }
 </script>
 
@@ -81,55 +119,97 @@ async function handleLogin() {
 
       <!-- Login Card -->
       <div class="login-card glass-card-strong">
-        <h2>Вход в систему</h2>
+        <!-- Шаг 1: Логин/пароль -->
+        <div v-if="!showTwoFactor">
+          <h2>Вход в систему</h2>
 
-        <el-form @submit.prevent="handleLogin" class="login-form">
-          <el-form-item>
-            <el-input
-              v-model="form.username"
-              placeholder="Логин"
+          <el-form @submit.prevent="handleLogin" class="login-form">
+            <el-form-item>
+              <el-input
+                v-model="form.username"
+                placeholder="Логин"
+                size="large"
+                autocomplete="username"
+              >
+                <template #prefix>
+                  <svg viewBox="0 0 24 24" fill="var(--accent)" width="20" height="20">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                </template>
+              </el-input>
+            </el-form-item>
+
+            <el-form-item>
+              <el-input
+                v-model="form.password"
+                type="password"
+                placeholder="Пароль"
+                size="large"
+                show-password
+                autocomplete="current-password"
+                @keyup.enter="handleLogin"
+              >
+                <template #prefix>
+                  <svg viewBox="0 0 24 24" fill="var(--accent)" width="20" height="20">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                  </svg>
+                </template>
+              </el-input>
+            </el-form-item>
+
+            <el-button
+              type="primary"
+              :loading="loading"
+              @click="handleLogin"
               size="large"
-              autocomplete="username"
+              class="login-btn"
             >
-              <template #prefix>
-                <svg viewBox="0 0 24 24" fill="var(--accent)" width="20" height="20">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-              </template>
-            </el-input>
-          </el-form-item>
+              <span>Войти</span>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+              </svg>
+            </el-button>
+          </el-form>
+        </div>
 
-          <el-form-item>
-            <el-input
-              v-model="form.password"
-              type="password"
-              placeholder="Пароль"
-              size="large"
-              show-password
-              autocomplete="current-password"
-              @keyup.enter="handleLogin"
-            >
-              <template #prefix>
-                <svg viewBox="0 0 24 24" fill="var(--accent)" width="20" height="20">
-                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                </svg>
-              </template>
-            </el-input>
-          </el-form-item>
-
-          <el-button
-            type="primary"
-            :loading="loading"
-            @click="handleLogin"
-            size="large"
-            class="login-btn"
-          >
-            <span>Войти</span>
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-              <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+        <!-- Шаг 2: Код 2FA -->
+        <div v-else class="two-factor-form">
+          <div class="two-factor-icon">
+            <svg viewBox="0 0 24 24" fill="var(--accent)" width="48" height="48">
+              <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
             </svg>
-          </el-button>
-        </el-form>
+          </div>
+          <h2>Двухфакторная аутентификация</h2>
+          <p class="two-factor-hint">Введите 6-значный код из приложения-аутентификатора</p>
+
+          <el-input
+            v-model="twoFactorCode"
+            placeholder="000000"
+            maxlength="6"
+            size="large"
+            class="two-factor-input"
+            @keyup.enter="handleVerifyTwoFactor"
+          />
+
+          <div class="two-factor-actions">
+            <el-button
+              type="primary"
+              :loading="loading"
+              :disabled="twoFactorCode.length !== 6"
+              size="large"
+              class="login-btn"
+              @click="handleVerifyTwoFactor"
+            >
+              Подтвердить
+            </el-button>
+            <el-button
+              text
+              @click="handleCancelTwoFactor"
+            >
+              Отмена
+            </el-button>
+          </div>
+        </div>
       </div>
 
       <p class="copyright">2026 Resource Manager</p>
@@ -380,6 +460,46 @@ async function handleLogin() {
   color: var(--text-muted);
   font-size: 12px;
   opacity: 0.7;
+}
+
+/* 2FA Form */
+.two-factor-form {
+  text-align: center;
+}
+
+.two-factor-icon {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.two-factor-form h2 {
+  font-size: 20px;
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+}
+
+.two-factor-hint {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.two-factor-input {
+  margin-bottom: 24px;
+}
+
+.two-factor-input :deep(.el-input__inner) {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 8px;
+  font-family: monospace;
+}
+
+.two-factor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* Responsive */

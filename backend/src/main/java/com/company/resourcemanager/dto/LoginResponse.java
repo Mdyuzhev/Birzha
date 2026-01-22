@@ -17,6 +17,10 @@ public class LoginResponse {
     private Set<String> roles;
     private Long dzoId;
 
+    // 2FA fields
+    private boolean requiresTwoFactor;
+    private String twoFactorToken;
+
     @Deprecated
     private String role;
 }

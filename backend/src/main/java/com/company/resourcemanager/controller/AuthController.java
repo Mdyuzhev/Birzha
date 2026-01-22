@@ -21,6 +21,13 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
+    @PostMapping("/verify-2fa")
+    public ResponseEntity<LoginResponse> verifyTwoFactor(@RequestBody java.util.Map<String, String> request) {
+        String twoFactorToken = request.get("twoFactorToken");
+        String code = request.get("code");
+        return ResponseEntity.ok(authService.verifyTwoFactor(twoFactorToken, code));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<UserDto> getCurrentUser() {
         return ResponseEntity.ok(authService.getCurrentUser());

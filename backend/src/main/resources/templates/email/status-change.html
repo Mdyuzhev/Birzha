@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 24px;
+        }
+        .footer {
+            background: #f9fafb;
+            padding: 16px 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .status-icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: white !important;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            margin: 16px 0;
+        }
+        .info-box {
+            background: #f9fafb;
+            border-left: 4px solid #10b981;
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 4px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            background: #d1fae5;
+            color: #065f46;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>Birzha</h1>
+            </div>
+            <div class="content">
+                <div class="status-icon">🔔</div>
+                <h2 style="text-align: center; margin-top: 0;">Изменение статуса заявки</h2>
+
+                <div class="info-box">
+                    <p style="margin: 0; font-size: 14px; color: #6b7280;">Заявка №</p>
+                    <p style="margin: 4px 0 0 0; font-size: 24px; font-weight: 700; color: #111827;" th:text="${applicationId}">1234</p>
+                </div>
+
+                <p>Статус вашей заявки изменился:</p>
+
+                <p style="text-align: center; margin: 20px 0;">
+                    <span class="status-badge" th:text="${newStatus}">APPROVED_HR_BP</span>
+                </p>
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+                <p><strong>Информация о заявке:</strong></p>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 4px 0;"><strong>Сотрудник:</strong> <span th:text="${employeeName}">Иванов Иван Петрович</span></li>
+                    <li style="padding: 4px 0;"><strong>Целевая должность:</strong> <span th:text="${targetPosition}">Senior Developer</span></li>
+                    <li style="padding: 4px 0;"><strong>Целевое подразделение:</strong> <span th:text="${targetDepartment}">Солар</span></li>
+                    <li style="padding: 4px 0;"><strong>Дата изменения:</strong> <span th:text="${changeDate}">22.01.2026 15:30</span></li>
+                </ul>
+
+                <p th:if="${comment}" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 16px 0; border-radius: 4px;">
+                    <strong>Комментарий:</strong><br>
+                    <span th:text="${comment}">Заявка одобрена</span>
+                </p>
+
+                <p style="text-align: center;">
+                    <a th:href="${baseUrl} + '/applications/' + ${applicationId}" class="button">Открыть заявку</a>
+                </p>
+            </div>
+            <div class="footer">
+                <p>Это автоматическое уведомление от системы Birzha.</p>
+                <p>Пожалуйста, не отвечайте на это письмо.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

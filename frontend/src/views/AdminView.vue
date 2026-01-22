@@ -8,6 +8,7 @@ import { dictionariesApi } from '@/api/dictionaries'
 import { columnsApi } from '@/api/columns'
 import { dzosApi } from '@/api/dzos'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import TwoFactorSetup from '@/components/TwoFactorSetup.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -721,6 +722,13 @@ onMounted(() => {
             </el-table>
           </div>
         </el-tab-pane>
+
+        <!-- Security Tab -->
+        <el-tab-pane label="Безопасность" name="security">
+          <div class="security-section">
+            <TwoFactorSetup />
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </main>
 
@@ -1278,6 +1286,11 @@ onMounted(() => {
   background: var(--bg-glass);
   border: 1px solid var(--border-glass);
   box-shadow: none;
+}
+
+.security-section {
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 @media (max-width: 768px) {

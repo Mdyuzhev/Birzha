@@ -48,6 +48,18 @@ public class User {
     @JoinColumn(name = "dzo_id")
     private Dzo dzo;
 
+    // === 2FA TOTP ===
+
+    @Column(name = "totp_secret", length = 64)
+    private String totpSecret;
+
+    @Column(name = "totp_enabled", nullable = false)
+    @Builder.Default
+    private Boolean totpEnabled = false;
+
+    @Column(name = "totp_enabled_at")
+    private LocalDateTime totpEnabledAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -80,6 +92,10 @@ public class User {
 
     public boolean isDzoAdmin() {
         return hasRole(Role.DZO_ADMIN);
+    }
+
+    public boolean isTotpEnabled() {
+        return Boolean.TRUE.equals(totpEnabled);
     }
 
     @Deprecated

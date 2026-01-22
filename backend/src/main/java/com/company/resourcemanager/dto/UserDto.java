@@ -22,6 +22,7 @@ public class UserDto {
     private Long dzoId;
     private LocalDateTime createdAt;
     private String createdByUsername;
+    private boolean totpEnabled;
 
     @Deprecated
     private String role;
@@ -40,6 +41,7 @@ public class UserDto {
                 .role(roleNames.isEmpty() ? null : roleNames.iterator().next())
                 .createdAt(entity.getCreatedAt())
                 .createdByUsername(entity.getCreatedBy() != null ? entity.getCreatedBy().getUsername() : null)
+                .totpEnabled(entity.isTotpEnabled())
                 .build();
     }
 }
