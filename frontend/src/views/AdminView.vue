@@ -131,6 +131,15 @@ function handleUserSearch() {
   fetchUsers()
 }
 
+// Автоматический поиск при вводе с дебаунсом
+let searchTimeout = null
+watch(userSearch, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    handleUserSearch()
+  }, 500)
+})
+
 async function fetchDzos() {
   dzosLoading.value = true
   try {
@@ -564,11 +573,6 @@ onMounted(() => {
                       {{ getRoleLabel(role) }}
                     </el-tag>
                   </div>
-                </template>
-              </el-table-column>
-              <el-table-column prop="createdAt" label="Создан" width="160">
-                <template #default="{ row }">
-                  {{ row.createdAt ? new Date(row.createdAt).toLocaleString('ru') : '—' }}
                 </template>
               </el-table-column>
             </el-table>

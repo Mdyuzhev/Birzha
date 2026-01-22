@@ -1,52 +1,52 @@
-ДЗО | Логин | Пароль | Роль
----|---|---|---
-ЦОД | cod_dzo_admin | pass123 | DZO_ADMIN
-ЦОД | cod_recruiter | pass123 | RECRUITER
-ЦОД | cod_hr_bp | pass123 | HR_BP
-ЦОД | cod_borup | pass123 | BORUP
-ЦОД | cod_manager | pass123 | MANAGER
-Солар | solar_dzo_admin | pass123 | DZO_ADMIN
-Солар | solar_recruiter | pass123 | RECRUITER
-Солар | solar_hr_bp | pass123 | HR_BP
-Солар | solar_borup | pass123 | BORUP
-Солар | solar_manager | pass123 | MANAGER
-БФТ | bft_dzo_admin | pass123 | DZO_ADMIN
-БФТ | bft_recruiter | pass123 | RECRUITER
-БФТ | bft_hr_bp | pass123 | HR_BP
-БФТ | bft_borup | pass123 | BORUP
-БФТ | bft_manager | pass123 | MANAGER
-Т2 | t2_dzo_admin | pass123 | DZO_ADMIN
-Т2 | t2_recruiter | pass123 | RECRUITER
-Т2 | t2_hr_bp | pass123 | HR_BP
-Т2 | t2_borup | pass123 | BORUP
-Т2 | t2_manager | pass123 | MANAGER
-Базис | basis_dzo_admin | pass123 | DZO_ADMIN
-Базис | basis_recruiter | pass123 | RECRUITER
-Базис | basis_hr_bp | pass123 | HR_BP
-Базис | basis_borup | pass123 | BORUP
-Базис | basis_manager | pass123 | MANAGER
-РТЛабс | labs_dzo_admin | pass123 | DZO_ADMIN
-РТЛабс | labs_recruiter | pass123 | RECRUITER
-РТЛабс | labs_hr_bp | pass123 | HR_BP
-РТЛабс | labs_borup | pass123 | BORUP
-РТЛабс | labs_manager | pass123 | MANAGER
-ОМП | omp_dzo_admin | pass123 | DZO_ADMIN
-ОМП | omp_recruiter | pass123 | RECRUITER
-ОМП | omp_hr_bp | pass123 | HR_BP
-ОМП | omp_borup | pass123 | BORUP
-ОМП | omp_manager | pass123 | MANAGER
-ПАО_РТК | paortk_dzo_admin | pass123 | DZO_ADMIN
-ПАО_РТК | paortk_recruiter | pass123 | RECRUITER
-ПАО_РТК | paortk_hr_bp | pass123 | HR_BP
-ПАО_РТК | paortk_borup | pass123 | BORUP
-ПАО_РТК | paortk_manager | pass123 | MANAGER
-РТК | rtk_dzo_admin | pass123 | DZO_ADMIN
-РТК | rtk_recruiter | pass123 | RECRUITER
-РТК | rtk_hr_bp | pass123 | HR_BP
-РТК | rtk_borup | pass123 | BORUP
-РТК | rtk_manager | pass123 | MANAGER
-РТК_ИТ | rtkit_dzo_admin | pass123 | DZO_ADMIN
-РТК_ИТ | rtkit_recruiter | pass123 | RECRUITER
-РТК_ИТ | rtkit_hr_bp | pass123 | HR_BP
-РТК_ИТ | rtkit_borup | pass123 | BORUP
-РТК_ИТ | rtkit_manager | pass123 | MANAGER
+ ДЗО | Логин | Пароль | Роль | ФИО
+---|---|---|---|---
+ЦОД | cod_dzo_admin | pass123 | DZO_ADMIN | Иванов Иван Иванович
+ЦОД | cod_recruiter | pass123 | RECRUITER | Петрова Анна Сергеевна
+ЦОД | cod_hr_bp | pass123 | HR_BP | Сидорова Елена Александровна
+ЦОД | cod_borup | pass123 | BORUP | Козлов Дмитрий Петрович
+ЦОД | cod_manager | pass123 | MANAGER | Морозов Алексей Викторович
+Солар | solar_dzo_admin | pass123 | DZO_ADMIN | Васильев Сергей Николаевич
+Солар | solar_recruiter | pass123 | RECRUITER | Федорова Мария Дмитриевна
+Солар | solar_hr_bp | pass123 | HR_BP | Михайлова Ольга Ивановна
+Солар | solar_borup | pass123 | BORUP | Новиков Андрей Сергеевич
+Солар | solar_manager | pass123 | MANAGER | Волков Максим Александрович
+БФТ | bft_dzo_admin | pass123 | DZO_ADMIN | Соколов Николай Владимирович
+БФТ | bft_recruiter | pass123 | RECRUITER | Павлова Екатерина Михайловна
+БФТ | bft_hr_bp | pass123 | HR_BP | Лебедева Наталья Петровна
+БФТ | bft_borup | pass123 | BORUP | Семенов Владимир Алексеевич
+БФТ | bft_manager | pass123 | MANAGER | Егоров Игорь Васильевич
+Т2 | t2_dzo_admin | pass123 | DZO_ADMIN | Попов Денис Андреевич
+Т2 | t2_recruiter | pass123 | RECRUITER | Романова Светлана Николаевна
+Т2 | t2_hr_bp | pass123 | HR_BP | Борисова Татьяна Сергеевна
+Т2 | t2_borup | pass123 | BORUP | Кузнецов Евгений Дмитриевич
+Т2 | t2_manager | pass123 | MANAGER | Смирнов Артем Игоревич
+Базис | basis_dzo_admin | pass123 | DZO_ADMIN | Белов Григорий Павлович
+Базис | basis_recruiter | pass123 | RECRUITER | Зайцева Юлия Александровна
+Базис | basis_hr_bp | pass123 | HR_BP | Матвеева Ирина Викторовна
+Базис | basis_borup | pass123 | BORUP | Николаев Олег Романович
+Базис | basis_manager | pass123 | MANAGER | Орлов Виктор Николаевич
+РТЛабс | labs_dzo_admin | pass123 | DZO_ADMIN | Григорьев Станислав Олегович
+РТЛабс | labs_recruiter | pass123 | RECRUITER | Тихонова Вероника Дмитриевна
+РТЛабс | labs_hr_bp | pass123 | HR_BP | Яковлева Анастасия Андреевна
+РТЛабс | labs_borup | pass123 | BORUP | Захаров Константин Сергеевич
+РТЛабс | labs_manager | pass123 | MANAGER | Королев Роман Владимирович
+ОМП | omp_dzo_admin | pass123 | DZO_ADMIN | Крылов Вячеслав Евгеньевич
+ОМП | omp_recruiter | pass123 | RECRUITER | Комарова Валентина Игоревна
+ОМП | omp_hr_bp | pass123 | HR_BP | Гусева Лариса Петровна
+ОМП | omp_borup | pass123 | BORUP | Соловьев Павел Михайлович
+ОМП | omp_manager | pass123 | MANAGER | Макаров Кирилл Александрович
+ПАО_РТК | paortk_dzo_admin | pass123 | DZO_ADMIN | Медведев Федор Владимирович
+ПАО_РТК | paortk_recruiter | pass123 | RECRUITER | Ковалева Дарья Сергеевна
+ПАО_РТК | paortk_hr_bp | pass123 | HR_BP | Степанова Виктория Николаевна
+ПАО_РТК | paortk_borup | pass123 | BORUP | Филиппов Георгий Дмитриевич
+ПАО_РТК | paortk_manager | pass123 | MANAGER | Данилов Руслан Андреевич
+РТК | rtk_dzo_admin | pass123 | DZO_ADMIN | Абрамов Тимур Романович
+РТК | rtk_recruiter | pass123 | RECRUITER | Антонова Полина Александровна
+РТК | rtk_hr_bp | pass123 | HR_BP | Кириллова Марина Владимировна
+РТК | rtk_borup | pass123 | BORUP | Богданов Илья Сергеевич
+РТК | rtk_manager | pass123 | MANAGER | Назаров Владислав Игоревич
+РТК_ИТ | rtkit_dzo_admin | pass123 | DZO_ADMIN | Фролов Антон Николаевич
+РТК_ИТ | rtkit_recruiter | pass123 | RECRUITER | Никитина Алина Дмитриевна
+РТК_ИТ | rtkit_hr_bp | pass123 | HR_BP | Власова Кристина Андреевна
+РТК_ИТ | rtkit_borup | pass123 | BORUP | Блинов Максим Петрович
+РТК_ИТ | rtkit_manager | pass123 | MANAGER | Беляев Артур Викторович

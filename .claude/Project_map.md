@@ -2,8 +2,8 @@
 
 **Карта архитектуры проекта**
 **Дата создания:** 2026-01-21
-**Последнее обновление:** 2026-01-21
-**Версия:** 1.6.0
+**Последнее обновление:** 2026-01-22
+**Версия:** 1.6.1
 
 ---
 
@@ -148,6 +148,7 @@ com.company.resourcemanager/
 ├── repository/
 │   ├── ApplicationRepository.java      # 20+ методов поиска
 │   ├── ApplicationHistoryRepository.java
+│   ├── UserRepository.java             # Поиск по username OR fullName
 │   └── ...
 ├── entity/
 │   ├── Application.java                # 20+ полей
@@ -211,7 +212,7 @@ frontend/src/
 │   ├── EmployeesView.vue
 │   ├── ApplicationsView.vue         # Список заявок с фильтрами (Phase 5)
 │   ├── ApplicationDetailView.vue    # Детальная страница + история (Phase 5)
-│   ├── AdminView.vue
+│   ├── AdminView.vue                # Пользователи, колонки, справочники
 │   ├── AnalyticsView.vue
 │   ├── NineBoxView.vue
 │   ├── NineBoxDetailView.vue
@@ -235,6 +236,23 @@ frontend/src/
 - Доступные workflow действия
 - Выполнение действий с комментариями
 - Автообновление после действия
+
+### AdminView.vue функционал (v1.6.1)
+
+**Вкладка "Пользователи":**
+- Таблица с колонками: ID, Логин, ФИО, ДЗО, Роли
+- **Поиск** по логину ИЛИ ФИО (регистронезависимый, подстрока)
+  - Автоматический поиск с дебаунсом 500ms
+  - Поддержка кириллицы
+- Пагинация: 6, 12, 24 на странице
+- CRUD: добавить, изменить, удалить пользователя
+- Множественные роли на пользователя
+
+**Вкладка "Колонки":**
+- Управление динамическими колонками для сотрудников
+
+**Вкладка "Справочники":**
+- Управление словарями значений
 
 ### Workflow Actions
 
@@ -273,6 +291,15 @@ POST   /api/roles/remove
 GET    /api/hr-bp-assignments
 POST   /api/hr-bp-assignments
 DELETE /api/hr-bp-assignments/{id}
+```
+
+### Пользователи (SYSTEM_ADMIN, DZO_ADMIN)
+```
+GET    /api/users/search         # Поиск по username OR fullName (+ пагинация)
+POST   /api/users                # Создание
+GET    /api/users/{id}           # Получение
+PUT    /api/users/{id}           # Обновление
+DELETE /api/users/{id}           # Удаление
 ```
 
 ### Заявки CRUD
@@ -338,7 +365,7 @@ GET    /api/blacklist/categories             # Категории причин
 | Таблица | Описание | Миграция |
 |---------|----------|----------|
 | dzos | ДЗО (организации) | V15 |
-| users | Пользователи | V1 |
+| users | Пользователи (+ full_name) | V1, V26 |
 | user_roles | Связь пользователь-роль | V17 |
 | hr_bp_assignments | Назначения HR BP на ДЗО | V18 |
 | employees | Сотрудники (JSONB) | V4 |
@@ -367,6 +394,10 @@ GET    /api/blacklist/categories             # Категории причин
 | V18 | create_hr_bp_assignments.sql | Назначения HR BP |
 | V19 | create_applications_table.sql | Таблица заявок |
 | V20 | create_application_history_table.sql | История заявок |
+| V21 | create_blacklist_table.sql | Таблица чёрного списка |
+| V22 | create_blacklist_history_table.sql | История чёрного списка |
+| V26 | add_full_name_to_users.sql | Поле ФИО в users |
+| V29 | seed_dzo_users.sql | Seed 50 пользователей ДЗО |
 
 ---
 
@@ -379,6 +410,35 @@ GET    /api/blacklist/categories             # Категории причин
 | PostgreSQL | localhost | 31432 | resourcedb / resourceuser / resourcepass |
 | Admin | — | — | admin / admin123 |
 | Test Users | — | — | user1-user10 / user |
+| **ДЗО Users** | — | — | **50 пользователей**: {dzo_prefix}_{role} / pass123 |
+
+### Пользователи ДЗО (V29)
+
+**10 ДЗО × 5 ролей = 50 пользователей**
+
+| ДЗО | Код | Префиксы логинов |
+|-----|-----|------------------|
+| ЦОД | rt-dc | cod_* |
+| Солар | rt-solar | solar_* |
+| БФТ | bft | bft_* |
+| Т2 | t2 | t2_* |
+| Базис | basistech | basis_* |
+| РТЛабс | rtlabs | labs_* |
+| ОМП | omp | omp_* |
+| ПАО РТК | pao-rtk | paortk_* |
+| РТК | rtk | rtk_* |
+| РТК ИТ | rtk-it | rtkit_* |
+
+**Роли для каждого ДЗО:**
+- `{prefix}_dzo_admin` - DZO_ADMIN
+- `{prefix}_recruiter` - RECRUITER
+- `{prefix}_hr_bp` - HR_BP
+- `{prefix}_borup` - BORUP
+- `{prefix}_manager` - MANAGER
+
+**Пароль для всех:** `pass123`
+
+**Пример:** `cod_hr_bp` / `pass123` - Сидорова Елена Александровна, HR BP ЦОД
 
 ---
 
@@ -409,8 +469,33 @@ curl -X POST http://localhost:31081/api/auth/login \
 | 1.3.0 | 2026-01-21 | Phase 3: Заявки — Backend |
 | 1.4.0 | 2026-01-21 | Phase 4: Заявки — Workflow |
 | 1.5.0 | 2026-01-21 | Phase 5: Заявки — Frontend UI |
+| 1.6.0 | 2026-01-21 | Чёрный список кандидатов |
+| 1.6.1 | 2026-01-22 | **Улучшения AdminView**: ФИО пользователей, поиск по ФИО, 50 тестовых пользователей ДЗО |
 
 ---
 
-**Дата актуальности:** 2026-01-21
+## 11. Изменения v1.6.1 (2026-01-22)
+
+### Backend
+- **V26**: Добавлено поле `full_name VARCHAR(255)` в таблицу `users`
+- **V29**: Seed данные - 50 пользователей для 10 ДЗО (5 ролей на каждое ДЗО)
+- **UserRepository**: Новый метод поиска `findByUsernameContainingIgnoreCaseOrFullNameContainingIgnoreCase`
+  - Поиск по логину ИЛИ ФИО (регистронезависимый)
+  - Поиск подстроки в любой части строки
+
+### Frontend
+- **AdminView.vue**:
+  - Добавлена колонка "ФИО" в таблицу пользователей
+  - Удалена колонка "Создан"
+  - Автоматический поиск с дебаунсом 500ms
+  - Placeholder: "Поиск по логину или ФИО"
+
+### Данные
+- **50 тестовых пользователей** с русскими ФИО
+- Пароль для всех: `pass123`
+- Полный список в [users_list.txt](E:\Birzha\users_list.txt)
+
+---
+
+**Дата актуальности:** 2026-01-22
 **Автор:** Claude Code Agent
