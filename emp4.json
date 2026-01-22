@@ -1,0 +1,11 @@
+{
+  "dzoId": 8,
+  "fullName": "Kozlov Nikolay Nikolaevich",
+  "email": "kozlov@paortk.ru",
+  "customFields": {
+    "position": "Team Lead",
+    "department": "IT",
+    "salary": "200000",
+    "hire_date": "2020-09-01"
+  }
+}

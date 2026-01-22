@@ -1,0 +1,11 @@
+{
+  "dzoId": 8,
+  "fullName": "Vasilyeva Maria Vasilyevna",
+  "email": "vasilyeva@paortk.ru",
+  "customFields": {
+    "position": "QA Engineer",
+    "department": "QA",
+    "salary": "80000",
+    "hire_date": "2023-05-12"
+  }
+}

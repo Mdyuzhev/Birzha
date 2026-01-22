@@ -1,0 +1,11 @@
+{
+  "dzoId": 8,
+  "fullName": "Ivanova Anna Ivanovna",
+  "email": "ivanova@paortk.ru",
+  "customFields": {
+    "position": "Senior Developer",
+    "department": "IT",
+    "salary": "150000",
+    "hire_date": "2021-06-20"
+  }
+}

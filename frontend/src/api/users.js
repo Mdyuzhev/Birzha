@@ -4,6 +4,9 @@ export const usersApi = {
   getAll() {
     return client.get('/users')
   },
+  search(params) {
+    return client.get('/users/search', { params })
+  },
   getById(id) {
     return client.get(`/users/${id}`)
   },

@@ -9,6 +9,10 @@ import com.company.resourcemanager.entity.User;
 import com.company.resourcemanager.repository.DzoRepository;
 import com.company.resourcemanager.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,12 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    public Page<UserDto> searchUsers(String search, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return userRepository.searchUsers(search, pageable)
+                .map(UserDto::fromEntity);
+    }
+
     public UserDto getUserById(Long id) {
         return userRepository.findById(id)
                 .map(UserDto::fromEntity)
@@ -53,6 +63,7 @@ public class UserService {
         User user = User.builder()
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .fullName(request.getFullName())
                 .userRoles(new HashSet<>())
                 .createdBy(currentUser)
                 .dzo(dzo)
@@ -80,6 +91,10 @@ public class UserService {
 
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        }
+
+        if (request.getFullName() != null) {
+            user.setFullName(request.getFullName());
         }
 
         if (request.getRoles() != null && !request.getRoles().isEmpty()) {

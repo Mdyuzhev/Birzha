@@ -25,6 +25,9 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Column(name = "full_name", length = 255)
+    private String fullName;
+
     @Deprecated
     @Enumerated(EnumType.STRING)
     @Column(length = 20)

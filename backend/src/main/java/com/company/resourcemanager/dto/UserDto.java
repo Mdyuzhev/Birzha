@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 public class UserDto {
     private Long id;
     private String username;
+    private String fullName;
     private Set<String> roles;
     private Long dzoId;
     private LocalDateTime createdAt;
@@ -33,6 +34,7 @@ public class UserDto {
         return UserDto.builder()
                 .id(entity.getId())
                 .username(entity.getUsername())
+                .fullName(entity.getFullName())
                 .roles(roleNames)
                 .dzoId(entity.getDzo() != null ? entity.getDzo().getId() : null)
                 .role(roleNames.isEmpty() ? null : roleNames.iterator().next())

@@ -21,9 +21,16 @@ const usersLoading = ref(false)
 const userDialogVisible = ref(false)
 const editingUser = ref(null)
 const selectedUser = ref(null)
+const userSearch = ref('')
+const userPagination = ref({
+  page: 0,
+  size: 6,
+  total: 0
+})
 const userForm = ref({
   username: '',
   password: '',
+  fullName: '',
   roles: ['MANAGER'],
   dzoId: null
 })
@@ -91,13 +98,37 @@ function getRoleType(roleCode) {
 async function fetchUsers() {
   usersLoading.value = true
   try {
-    const response = await usersApi.getAll()
-    users.value = response.data
+    const params = {
+      page: userPagination.value.page,
+      size: userPagination.value.size
+    }
+    if (userSearch.value) {
+      params.search = userSearch.value
+    }
+    const response = await usersApi.search(params)
+    users.value = response.data.content
+    userPagination.value.total = response.data.totalElements
   } catch (error) {
     ElMessage.error('Ошибка загрузки пользователей')
   } finally {
     usersLoading.value = false
   }
+}
+
+function handleUserPageChange(page) {
+  userPagination.value.page = page - 1
+  fetchUsers()
+}
+
+function handleUserSizeChange(size) {
+  userPagination.value.size = size
+  userPagination.value.page = 0
+  fetchUsers()
+}
+
+function handleUserSearch() {
+  userPagination.value.page = 0
+  fetchUsers()
 }
 
 async function fetchDzos() {
@@ -134,6 +165,7 @@ function openUserDialog(user = null) {
     userForm.value = {
       username: user.username,
       password: '',
+      fullName: user.fullName || '',
       roles: user.roles ? [...user.roles] : ['MANAGER'],
       dzoId: user.dzoId || null
     }
@@ -141,6 +173,7 @@ function openUserDialog(user = null) {
     userForm.value = {
       username: '',
       password: '',
+      fullName: '',
       roles: ['MANAGER'],
       dzoId: null
     }
@@ -156,6 +189,7 @@ function openEditUserDialog() {
 async function saveUser() {
   try {
     const data = {
+      fullName: userForm.value.fullName,
       roles: userForm.value.roles,
       dzoId: userForm.value.dzoId
     }
@@ -477,6 +511,22 @@ onMounted(() => {
               </svg>
               <span>Удалить</span>
             </el-button>
+            <el-input
+              v-model="userSearch"
+              placeholder="Поиск по логину или ФИО"
+              clearable
+              @clear="handleUserSearch"
+              @keyup.enter="handleUserSearch"
+              style="width: 300px; margin-left: auto;"
+            >
+              <template #suffix>
+                <el-button link @click="handleUserSearch">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                  </svg>
+                </el-button>
+              </template>
+            </el-input>
           </div>
 
           <div class="table-card glass-card-strong">
@@ -490,9 +540,10 @@ onMounted(() => {
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column prop="id" label="ID" width="80" />
-              <el-table-column prop="username" label="Логин" width="180" />
-              <el-table-column label="ДЗО" width="150">
+              <el-table-column prop="id" label="ID" width="70" />
+              <el-table-column prop="username" label="Логин" width="150" />
+              <el-table-column prop="fullName" label="ФИО" min-width="220" />
+              <el-table-column label="ДЗО" width="120">
                 <template #default="{ row }">
                   <span v-if="row.dzoId">
                     {{ dzos.find(d => d.id === row.dzoId)?.name || '—' }}
@@ -500,7 +551,7 @@ onMounted(() => {
                   <span v-else class="text-muted">—</span>
                 </template>
               </el-table-column>
-              <el-table-column label="Роли">
+              <el-table-column label="Роли" min-width="200">
                 <template #default="{ row }">
                   <div class="user-roles">
                     <el-tag
@@ -515,12 +566,24 @@ onMounted(() => {
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column prop="createdAt" label="Создан" width="180">
+              <el-table-column prop="createdAt" label="Создан" width="160">
                 <template #default="{ row }">
                   {{ row.createdAt ? new Date(row.createdAt).toLocaleString('ru') : '—' }}
                 </template>
               </el-table-column>
             </el-table>
+
+            <div class="pagination-wrapper">
+              <el-pagination
+                :current-page="userPagination.page + 1"
+                :page-size="userPagination.size"
+                :page-sizes="[6, 12, 24]"
+                :total="userPagination.total"
+                layout="total, sizes, prev, pager, next"
+                @size-change="handleUserSizeChange"
+                @current-change="handleUserPageChange"
+              />
+            </div>
           </div>
         </el-tab-pane>
 
@@ -678,6 +741,12 @@ onMounted(() => {
             type="password"
             :placeholder="editingUser ? 'Оставьте пустым, чтобы не менять' : 'Введите пароль'"
             show-password
+          />
+        </el-form-item>
+        <el-form-item label="ФИО">
+          <el-input
+            v-model="userForm.fullName"
+            placeholder="Введите ФИО"
           />
         </el-form-item>
         <el-form-item label="ДЗО">
@@ -1167,6 +1236,44 @@ onMounted(() => {
 
 .role-tag {
   margin: 0 !important;
+}
+
+/* Пагинация */
+.pagination-wrapper {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-glass);
+}
+
+:deep(.el-pagination) {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: var(--bg-glass);
+  --el-pagination-hover-color: var(--accent);
+}
+
+:deep(.el-pagination .el-pager li) {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  margin: 0 2px;
+}
+
+:deep(.el-pagination .el-pager li.is-active) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+:deep(.el-pagination button) {
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+}
+
+:deep(.el-pagination .el-select .el-input__wrapper) {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  box-shadow: none;
 }
 
 @media (max-width: 768px) {

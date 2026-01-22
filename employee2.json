@@ -1,0 +1,16 @@
+{
+  "fullName": "Смирнова Анна Владимировна",
+  "email": "a.smirnova@pao-rtk.ru",
+  "customFields": {
+    "position": "Middle Developer",
+    "department": "Frontend",
+    "grade": "Middle",
+    "location": "Санкт-Петербург",
+    "hire_date": "2021-08-20",
+    "salary": "2800",
+    "status": "На проекте",
+    "skills": "React, TypeScript, Redux, CSS",
+    "project": "Customer Portal",
+    "ready_for_vacancy": "Нет"
+  }
+}
