@@ -1,157 +1,169 @@
 <template>
   <div class="application-detail-view">
-    <el-page-header @back="goBack" title="Назад к списку">
-      <template #content>
-        <span class="page-title">Заявка #{{ applicationId }}</span>
-      </template>
-    </el-page-header>
+    <!-- Фон с orbs -->
+    <div class="bg-orbs">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
 
+    <!-- Навигация -->
+    <div class="page-nav">
+      <el-button text @click="goBack" style="color: rgba(255, 255, 255, 0.8);">
+        ← Назад к списку
+      </el-button>
+      <span class="page-title">Заявка #{{ application?.id || applicationId }}</span>
+    </div>
+
+    <!-- Загрузка -->
     <div v-if="applicationsStore.loading && !application" class="loading-container">
       <el-skeleton :rows="10" animated />
     </div>
 
+    <!-- Контент -->
     <div v-else-if="application" class="content">
       <!-- Основная информация -->
-      <el-card class="info-card">
-        <template #header>
-          <div class="card-header">
-            <span>Основная информация</span>
-            <div class="header-actions">
-              <ApplicationStatusBadge :status="application.status" size="large" />
-              <el-button
-                v-if="canEdit && !isEditing"
-                type="primary"
-                size="small"
-                @click="startEdit"
-              >
-                Редактировать
-              </el-button>
-              <template v-if="isEditing">
-                <el-button type="success" size="small" @click="saveEdit">Сохранить</el-button>
-                <el-button size="small" @click="cancelEdit">Отмена</el-button>
-              </template>
+      <div class="info-card glass-card">
+        <div class="card-header">
+          <h2>Основная информация</h2>
+          <div class="header-right">
+            <ApplicationStatusBadge :status="application.status" size="large" />
+            <el-button
+              v-if="canEdit && !isEditing"
+              type="primary"
+              @click="startEdit"
+            >
+              Редактировать
+            </el-button>
+            <template v-if="isEditing">
+              <el-button type="success" @click="saveEdit">Сохранить</el-button>
+              <el-button @click="cancelEdit">Отмена</el-button>
+            </template>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <!-- Левая колонка -->
+          <div class="info-column">
+            <div class="info-row">
+              <span class="info-label">ID</span>
+              <span class="info-value">{{ application.id }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Сотрудник</span>
+              <span class="info-value">{{ application.employeeName || '-' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Email</span>
+              <span class="info-value">{{ application.employeeEmail || '-' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Целевая должность</span>
+              <span class="info-value" v-if="!isEditing">{{ application.targetPosition || '-' }}</span>
+              <el-input v-else v-model="editForm.targetPosition" />
+            </div>
+            <div class="info-row">
+              <span class="info-label">Целевой стек</span>
+              <span class="info-value" v-if="!isEditing">{{ application.targetStack || '-' }}</span>
+              <el-input v-else v-model="editForm.targetStack" />
             </div>
           </div>
-        </template>
 
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="ID">{{ application.id }}</el-descriptions-item>
-          <el-descriptions-item label="Статус">
-            {{ application.statusDisplayName }}
-          </el-descriptions-item>
+          <!-- Правая колонка -->
+          <div class="info-column">
+            <div class="info-row">
+              <span class="info-label">Текущая ЗП</span>
+              <span class="info-value" v-if="!isEditing">
+                {{ application.currentSalary ? formatSalary(application.currentSalary) : '-' }}
+              </span>
+              <el-input-number v-else v-model="editForm.currentSalary" :min="0" :step="10000" controls-position="right" style="width: 100%" />
+            </div>
+            <div class="info-row">
+              <span class="info-label">Целевая ЗП</span>
+              <span class="info-value" v-if="!isEditing">
+                {{ application.targetSalary ? formatSalary(application.targetSalary) : '-' }}
+              </span>
+              <el-input-number v-else v-model="editForm.targetSalary" :min="0" :step="10000" controls-position="right" style="width: 100%" />
+            </div>
+            <div class="info-row">
+              <span class="info-label">Изменение ЗП</span>
+              <span class="info-value">
+                <el-tag v-if="application.salaryIncreasePercent" :type="getSalaryChangeType()" size="small">
+                  {{ application.salaryIncreasePercent > 0 ? '+' : '' }}{{ application.salaryIncreasePercent?.toFixed(1) }}%
+                </el-tag>
+                <span v-else>-</span>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Создано</span>
+              <span class="info-value">{{ formatDateTime(application.createdAt) }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Автор</span>
+              <span class="info-value">{{ application.createdByName || '-' }}</span>
+            </div>
+          </div>
+        </div>
 
-          <el-descriptions-item label="Сотрудник">
-            {{ application.employeeName || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="Email сотрудника">
-            {{ application.employeeEmail || '-' }}
-          </el-descriptions-item>
+        <!-- Участники -->
+        <div class="participants-section">
+          <h3>Участники</h3>
+          <div class="participants-grid">
+            <div class="participant">
+              <span class="participant-role">Рекрутер</span>
+              <span class="participant-name">{{ application.recruiterName || 'Не назначен' }}</span>
+            </div>
+            <div class="participant">
+              <span class="participant-role">HR BP</span>
+              <span class="participant-name">{{ application.hrBpName || 'Не назначен' }}</span>
+            </div>
+            <div class="participant" v-if="application.requiresBorupApproval">
+              <span class="participant-role">БОРУП</span>
+              <span class="participant-name">{{ application.borupName || 'Не назначен' }}</span>
+            </div>
+          </div>
+        </div>
 
-          <el-descriptions-item label="Целевая должность" :span="2">
-            <template v-if="isEditing">
-              <el-input v-model="editForm.targetPosition" />
-            </template>
-            <template v-else>
-              {{ application.targetPosition || '-' }}
-            </template>
-          </el-descriptions-item>
+        <!-- Комментарий -->
+        <div class="comment-section" v-if="application.comment || isEditing">
+          <h3>Комментарий</h3>
+          <p v-if="!isEditing" class="comment-text">{{ application.comment || '-' }}</p>
+          <el-input v-else v-model="editForm.comment" type="textarea" :rows="3" />
+        </div>
 
-          <el-descriptions-item label="Целевой стек" :span="2">
-            <template v-if="isEditing">
-              <el-input v-model="editForm.targetStack" />
-            </template>
-            <template v-else>
-              {{ application.targetStack || '-' }}
-            </template>
-          </el-descriptions-item>
-
-          <el-descriptions-item label="Текущая ЗП">
-            <template v-if="isEditing">
-              <el-input-number v-model="editForm.currentSalary" :min="0" :step="10000" controls-position="right" style="width: 100%" />
-            </template>
-            <template v-else>
-              {{ application.currentSalary ? formatSalary(application.currentSalary) : '-' }}
-            </template>
-          </el-descriptions-item>
-          <el-descriptions-item label="Целевая ЗП">
-            <template v-if="isEditing">
-              <el-input-number v-model="editForm.targetSalary" :min="0" :step="10000" controls-position="right" style="width: 100%" />
-            </template>
-            <template v-else>
-              {{ application.targetSalary ? formatSalary(application.targetSalary) : '-' }}
-              <el-tag v-if="application.salaryIncreasePercent" :type="getSalaryChangeType()" size="small" style="margin-left: 8px">
-                {{ application.salaryIncreasePercent > 0 ? '+' : '' }}{{ application.salaryIncreasePercent?.toFixed(1) }}%
-              </el-tag>
-            </template>
-          </el-descriptions-item>
-
-          <el-descriptions-item label="Создано">
-            {{ formatDateTime(application.createdAt) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="Автор заявки">
-            {{ application.createdByName || '-' }}
-          </el-descriptions-item>
-
-          <el-descriptions-item label="Рекрутер">
-            {{ application.recruiterName || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="HR BP">
-            {{ application.hrBpName || '-' }}
-          </el-descriptions-item>
-
-          <el-descriptions-item label="БОРУП" :span="2">
-            {{ application.borupName || '-' }}
-          </el-descriptions-item>
-
-          <el-descriptions-item label="Комментарий" :span="2">
-            <template v-if="isEditing">
-              <el-input v-model="editForm.comment" type="textarea" :rows="3" />
-            </template>
-            <template v-else>
-              {{ application.comment || '-' }}
-            </template>
-          </el-descriptions-item>
-        </el-descriptions>
-
-        <!-- Доступные действия -->
-        <ApplicationWorkflowActions
-          v-if="availableActions.length > 0"
-          :application-id="application.id"
-          :available-actions="availableActions"
-          @action-executed="handleActionExecuted"
-        />
-      </el-card>
+        <!-- Действия workflow -->
+        <div class="actions-section" v-if="availableActions.length > 0">
+          <ApplicationWorkflowActions
+            :application-id="application.id"
+            :available-actions="availableActions"
+            @action-executed="handleActionExecuted"
+          />
+        </div>
+      </div>
 
       <!-- История изменений -->
-      <el-card class="history-card">
-        <template #header>
-          <span>История изменений</span>
-        </template>
-
-        <el-timeline v-if="history.length > 0">
-          <el-timeline-item
-            v-for="item in history"
-            :key="item.id"
-            :timestamp="formatDateTime(item.changedAt)"
-            placement="top"
-          >
-            <el-card>
-              <div class="history-item">
-                <div class="history-header">
-                  <ApplicationStatusBadge v-if="item.newStatus" :status="item.newStatus" size="small" />
-                  <span class="history-action">{{ item.action }}</span>
-                  <span class="history-user">{{ item.changedByName }}</span>
-                </div>
-                <div v-if="item.comment" class="history-comment">
-                  <strong>Комментарий:</strong> {{ item.comment }}
-                </div>
+      <div class="history-card glass-card">
+        <h2>История изменений</h2>
+        <div v-if="history.length" class="history-timeline">
+          <div v-for="item in history" :key="item.id" class="history-item">
+            <div class="history-dot"></div>
+            <div class="history-content">
+              <div class="history-header">
+                <span class="history-action">{{ item.action }}</span>
+                <span class="history-date">{{ formatDateTime(item.changedAt) }}</span>
               </div>
-            </el-card>
-          </el-timeline-item>
-        </el-timeline>
-
+              <div class="history-user">{{ item.changedByName }}</div>
+              <div v-if="item.comment" class="history-comment">{{ item.comment }}</div>
+              <div v-if="item.oldStatus || item.newStatus" class="history-status">
+                <ApplicationStatusBadge v-if="item.oldStatus" :status="item.oldStatus" size="small" />
+                <span v-if="item.oldStatus && item.newStatus"> → </span>
+                <ApplicationStatusBadge v-if="item.newStatus" :status="item.newStatus" size="small" />
+              </div>
+            </div>
+          </div>
+        </div>
         <el-empty v-else description="История изменений отсутствует" />
-      </el-card>
+      </div>
     </div>
 
     <el-empty v-else description="Заявка не найдена" />
@@ -249,12 +261,6 @@ function getSalaryChangeType() {
   return 'info'
 }
 
-function formatDate(dateString) {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('ru-RU')
-}
-
 function formatDateTime(dateString) {
   if (!dateString) return '-'
   const date = new Date(dateString)
@@ -293,8 +299,6 @@ async function handleActionExecuted({ action, applicationId, data }) {
   try {
     await applicationsStore.executeAction(action, applicationId, data)
     ElMessage.success('Действие выполнено успешно')
-
-    // Перезагрузить заявку, историю и доступные действия
     await loadApplication()
   } catch (error) {
     ElMessage.error(error.message || 'Ошибка выполнения действия')
@@ -308,161 +312,344 @@ onMounted(() => {
 
 <style scoped>
 .application-detail-view {
+  padding: 24px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0d0d2b 100%);
-  padding: 20px;
+  position: relative;
+  background: #0a0a1a;
+}
+
+/* Фон с orbs - как у резюме */
+.bg-orbs {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  animation: float 20s ease-in-out infinite;
+}
+
+.orb-1 {
+  width: 400px;
+  height: 400px;
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+  top: -100px;
+  right: -100px;
+}
+
+.orb-2 {
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  bottom: 100px;
+  left: -50px;
+  animation-delay: -7s;
+}
+
+.orb-3 {
+  width: 250px;
+  height: 250px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #c4b5fd 100%);
+  top: 50%;
+  right: 20%;
+  animation-delay: -14s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-30px) rotate(5deg); }
+}
+
+/* Навигация */
+.page-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
 }
 
 .page-title {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
-  color: #fff;
+  color: #f0f0f5;
+}
+
+/* Glass card */
+.glass-card {
+  background: rgba(30, 30, 50, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
 }
 
 .loading-container {
-  margin-top: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .content {
-  margin-top: 20px;
+  position: relative;
+  z-index: 1;
 }
 
-.info-card {
-  margin-bottom: 20px;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-}
-
-.info-card :deep(.el-card__header) {
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.info-card :deep(.el-card__body) {
-  background: transparent;
-}
-
-.info-card :deep(.el-descriptions__table) {
-  background: transparent;
-}
-
-.info-card :deep(.el-descriptions__label),
-.info-card :deep(.el-descriptions__content) {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.info-card :deep(.el-descriptions__cell) {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.card-header {
+/* Карточка информации */
+.info-card .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.card-header span {
-  color: #fff;
+.info-card h2 {
+  margin: 0;
+  font-size: 20px;
   font-weight: 600;
+  color: #f0f0f5;
 }
 
-.header-actions {
+.header-right {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.history-card {
-  margin-bottom: 20px;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+/* Сетка информации */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
 }
 
-.history-card :deep(.el-card__header) {
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+.info-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.history-card :deep(.el-card__body) {
-  background: transparent;
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.history-card :deep(.el-timeline-item__timestamp) {
-  color: rgba(255, 255, 255, 0.6);
+.info-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 15px;
+  color: #f0f0f5;
+}
+
+/* Участники */
+.participants-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.participants-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f0f0f5;
+  margin: 0 0 16px 0;
+}
+
+.participants-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.participant {
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.participant-role {
+  font-size: 12px;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.participant-name {
+  font-size: 14px;
+  color: #f0f0f5;
+  font-weight: 500;
+}
+
+/* Комментарий */
+.comment-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.comment-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f0f0f5;
+  margin: 0 0 12px 0;
+}
+
+.comment-text {
+  color: #d1d5db;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Действия */
+.actions-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* История */
+.history-card h2 {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #f0f0f5;
+}
+
+.history-timeline {
+  position: relative;
+  padding-left: 24px;
+}
+
+.history-timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(124, 58, 237, 0.3);
 }
 
 .history-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  position: relative;
+  padding-bottom: 24px;
 }
 
-.history-item :deep(.el-card) {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.history-item:last-child {
+  padding-bottom: 0;
+}
+
+.history-dot {
+  position: absolute;
+  left: -24px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #7c3aed;
+  border: 3px solid rgba(30, 30, 50, 0.8);
+}
+
+.history-content {
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: 12px;
+  padding: 16px;
 }
 
 .history-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .history-action {
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  color: #f0f0f5;
+}
+
+.history-date {
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .history-user {
-  font-weight: 500;
-  color: #60a5fa;
+  font-size: 13px;
+  color: #d1d5db;
+  margin-bottom: 8px;
 }
 
 .history-comment {
-  padding: 8px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  color: #d1d5db;
+  margin-bottom: 8px;
+  font-style: italic;
 }
 
-.history-changes {
-  padding: 8px;
-  background-color: rgba(255, 255, 255, 0.03);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.8);
+.history-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.history-changes ul {
-  margin: 4px 0 0 0;
-  padding-left: 20px;
+/* Стили для Element Plus в тёмной теме */
+:deep(.el-input__wrapper),
+:deep(.el-input-number__wrapper),
+:deep(.el-textarea__inner) {
+  background: rgba(30, 30, 50, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: none !important;
 }
 
-.history-changes li {
-  margin: 4px 0;
-  color: rgba(255, 255, 255, 0.8);
+:deep(.el-input__inner),
+:deep(.el-textarea__inner) {
+  color: #f0f0f5 !important;
 }
 
-.application-detail-view :deep(.el-page-header__header) {
-  margin-bottom: 20px;
+:deep(.el-empty__description p) {
+  color: #9ca3af;
 }
 
-.application-detail-view :deep(.el-page-header__title) {
-  color: rgba(255, 255, 255, 0.8);
+:deep(.el-skeleton) {
+  background: rgba(30, 30, 50, 0.6);
+  border-radius: 16px;
+  padding: 24px;
 }
 
-.application-detail-view :deep(.el-page-header__content) {
-  color: #fff;
-}
+/* Responsive */
+@media (max-width: 768px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
 
-.application-detail-view :deep(.el-empty__description p) {
-  color: rgba(255, 255, 255, 0.6);
+  .participants-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
