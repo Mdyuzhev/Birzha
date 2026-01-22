@@ -37,10 +37,12 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     List<Application> findByRecruiterIdAndStatusIn(Long recruiterId, List<ApplicationStatus> statuses);
 
     // По HR BP
+    Page<Application> findByHrBpId(Long hrBpId, Pageable pageable);
     Page<Application> findByHrBpIdAndStatus(Long hrBpId, ApplicationStatus status, Pageable pageable);
     List<Application> findByHrBpIdAndHrBpDecision(Long hrBpId, DecisionType decision);
 
     // По БОРУП
+    Page<Application> findByBorupId(Long borupId, Pageable pageable);
     Page<Application> findByBorupIdAndStatus(Long borupId, ApplicationStatus status, Pageable pageable);
 
     // Для дашборда

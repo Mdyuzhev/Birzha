@@ -38,11 +38,11 @@ public class ApplicationService {
 
         // Проверка прав: только Руководитель или HR BP могут создавать заявки
         if (!currentUser.hasRole(Role.MANAGER) && !currentUser.hasRole(Role.HR_BP)) {
-            throw new AccessDeniedException("Only MANAGER or HR_BP can create applications");
+            throw new AccessDeniedException("Только Руководитель или HR BP могут создавать заявки");
         }
 
         Employee employee = employeeRepository.findById(request.getEmployeeId())
-            .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Сотрудник не найден"));
 
         // Проверка чёрного списка
         if (blacklistService.isEmployeeInBlacklist(request.getEmployeeId(), currentUser.getDzo().getId())) {
@@ -56,7 +56,7 @@ public class ApplicationService {
             ApplicationStatus.CANCELLED
         );
         if (applicationRepository.findByEmployeeIdAndStatusNotIn(employee.getId(), finalStatuses).isPresent()) {
-            throw new BusinessException("Employee already has an active application");
+            throw new BusinessException("Сотрудник уже имеет активную заявку. Дождитесь завершения текущей заявки или отмените её.");
         }
 
         Application application = Application.builder()
@@ -74,7 +74,7 @@ public class ApplicationService {
         // Если указан HR BP
         if (request.getHrBpId() != null) {
             User hrBp = userRepository.findById(request.getHrBpId())
-                .orElseThrow(() -> new ResourceNotFoundException("HR BP not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("HR BP не найден"));
             application.setHrBp(hrBp);
         }
 
@@ -99,13 +99,19 @@ public class ApplicationService {
         // Можно редактировать только в статусах DRAFT, AVAILABLE_FOR_REVIEW
         if (application.getStatus() != ApplicationStatus.DRAFT &&
             application.getStatus() != ApplicationStatus.AVAILABLE_FOR_REVIEW) {
-            throw new BusinessException("Cannot update application in status: " + application.getStatus());
+            throw new BusinessException("Редактирование заявки невозможно в статусе: " + application.getStatus().getDisplayName());
         }
 
-        // Проверка прав: создатель или рекрутер
-        if (!application.getCreatedBy().getId().equals(currentUser.getId()) &&
-            (application.getRecruiter() == null || !application.getRecruiter().getId().equals(currentUser.getId()))) {
-            throw new AccessDeniedException("No permission to update this application");
+        // Проверка прав: создатель, рекрутер или менеджер из того же ДЗО
+        boolean isCreator = application.getCreatedBy().getId().equals(currentUser.getId());
+        boolean isRecruiter = application.getRecruiter() != null &&
+            application.getRecruiter().getId().equals(currentUser.getId());
+        boolean isManagerSameDzo = currentUser.hasRole(Role.MANAGER) &&
+            application.getDzo().getId().equals(currentUser.getDzo().getId());
+        boolean isAdmin = currentUser.hasRole(Role.DZO_ADMIN) || currentUser.hasRole(Role.SYSTEM_ADMIN);
+
+        if (!isCreator && !isRecruiter && !isManagerSameDzo && !isAdmin) {
+            throw new AccessDeniedException("Нет прав для редактирования этой заявки");
         }
 
         if (request.getTargetPosition() != null) {
@@ -143,13 +149,13 @@ public class ApplicationService {
 
         // Можно удалить только черновик
         if (application.getStatus() != ApplicationStatus.DRAFT) {
-            throw new BusinessException("Can only delete DRAFT applications");
+            throw new BusinessException("Удалить можно только черновик заявки");
         }
 
         // Проверка прав: только создатель
         if (!application.getCreatedBy().getId().equals(currentUser.getId()) &&
             !currentUser.isSystemAdmin() && !currentUser.isDzoAdmin()) {
-            throw new AccessDeniedException("No permission to delete this application");
+            throw new AccessDeniedException("Нет прав для удаления этой заявки");
         }
 
         applicationRepository.delete(application);
@@ -194,8 +200,27 @@ public class ApplicationService {
 
     public Page<ApplicationDto> getAssignedToMe(Pageable pageable) {
         User currentUser = currentUserService.getCurrentUser();
-        Page<Application> applications = applicationRepository.findByRecruiterId(currentUser.getId(), pageable);
-        return applications.map(this::toDto);
+
+        // Для рекрутера — заявки где он назначен рекрутером
+        if (currentUser.hasRole(Role.RECRUITER)) {
+            return applicationRepository.findByRecruiterId(currentUser.getId(), pageable)
+                .map(this::toDto);
+        }
+
+        // Для HR BP — заявки где он назначен HR BP
+        if (currentUser.hasRole(Role.HR_BP)) {
+            return applicationRepository.findByHrBpId(currentUser.getId(), pageable)
+                .map(this::toDto);
+        }
+
+        // Для BORUP — заявки где он назначен BORUP
+        if (currentUser.hasRole(Role.BORUP)) {
+            return applicationRepository.findByBorupId(currentUser.getId(), pageable)
+                .map(this::toDto);
+        }
+
+        // Для остальных — пустой список
+        return Page.empty(pageable);
     }
 
     public Page<ApplicationDto> getPendingMyApproval(Pageable pageable) {
@@ -277,14 +302,14 @@ public class ApplicationService {
             || currentUser.hasRole(Role.SYSTEM_ADMIN);
 
         if (!canAssign) {
-            throw new AccessDeniedException("No permission to assign HR BP");
+            throw new AccessDeniedException("Нет прав для назначения HR BP");
         }
 
         User hrBp = userRepository.findById(hrBpId)
-            .orElseThrow(() -> new ResourceNotFoundException("HR BP not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("HR BP не найден"));
 
         if (!hrBp.hasRole(Role.HR_BP)) {
-            throw new BusinessException("User is not HR BP");
+            throw new BusinessException("Пользователь не является HR BP");
         }
 
         app.setHrBp(hrBp);
@@ -306,14 +331,14 @@ public class ApplicationService {
             || currentUser.hasRole(Role.SYSTEM_ADMIN);
 
         if (!canAssign) {
-            throw new AccessDeniedException("No permission to assign BORUP");
+            throw new AccessDeniedException("Нет прав для назначения БОРУП");
         }
 
         User borup = userRepository.findById(borupId)
-            .orElseThrow(() -> new ResourceNotFoundException("BORUP not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("БОРУП не найден"));
 
         if (!borup.hasRole(Role.BORUP)) {
-            throw new BusinessException("User is not BORUP");
+            throw new BusinessException("Пользователь не является БОРУП");
         }
 
         app.setBorup(borup);
@@ -329,7 +354,7 @@ public class ApplicationService {
 
     private Application findByIdWithAccessCheck(Long id) {
         Application application = applicationRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Application not found: " + id));
+            .orElseThrow(() -> new ResourceNotFoundException("Заявка не найдена: " + id));
 
         User currentUser = currentUserService.getCurrentUser();
 
@@ -340,7 +365,7 @@ public class ApplicationService {
 
         // Проверка доступа по ДЗО
         if (!roleService.canAccessDzo(currentUser, application.getDzo().getId())) {
-            throw new AccessDeniedException("No access to this DZO");
+            throw new AccessDeniedException("Нет доступа к этому ДЗО");
         }
 
         return application;

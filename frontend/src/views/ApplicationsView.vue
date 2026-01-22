@@ -134,7 +134,7 @@
         >
           <el-table-column prop="id" label="ID" width="80" />
 
-          <el-table-column label="Сотрудник" width="200">
+          <el-table-column label="Сотрудник" min-width="220">
             <template #default="{ row }">
               {{ getEmployeeName(row) }}
             </template>
@@ -148,17 +148,19 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="targetPosition" label="Целевая должность" min-width="180" />
-          <el-table-column prop="targetDepartment" label="Целевое подразделение" min-width="180" />
+          <el-table-column prop="targetPosition" label="Целевая должность" width="180" show-overflow-tooltip />
 
-          <el-table-column label="ЗП" width="200">
+          <el-table-column label="ЗП" width="160">
             <template #default="{ row }">
               <div v-if="row.currentSalary && row.targetSalary" class="salary-cell">
-                <span>{{ formatSalary(row.currentSalary) }} → {{ formatSalary(row.targetSalary) }}</span>
-                <el-tag :type="getSalaryChangeType(row)" size="small">
+                <div class="salary-change">
+                  {{ formatSalary(row.currentSalary) }} → {{ formatSalary(row.targetSalary) }}
+                </div>
+                <el-tag :type="getSalaryChangeType(row)" size="small" class="salary-percent">
                   {{ getSalaryChangePercent(row) }}%
                 </el-tag>
               </div>
+              <span v-else>-</span>
             </template>
           </el-table-column>
 
@@ -173,19 +175,19 @@
               {{ formatDate(row.createdAt) }}
             </template>
           </el-table-column>
-
-          <el-table-column label="Действия" width="100" fixed="right">
-            <template #default="{ row }">
-              <el-button
-                link
-                type="primary"
-                @click.stop="viewApplication(row.id)"
-              >
-                Открыть
-              </el-button>
-            </template>
-          </el-table-column>
         </el-table>
+
+        <div class="pagination-wrapper">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next"
+            @size-change="handleSizeChange"
+            @current-change="handlePageChange"
+          />
+        </div>
       </div>
     </main>
 
@@ -226,6 +228,12 @@ const stats = ref(null)
 const createDialogVisible = ref(false)
 const formLoading = ref(false)
 
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0
+})
+
 const availableStatuses = [
   { value: 'DRAFT', label: 'Черновик' },
   { value: 'AVAILABLE_FOR_REVIEW', label: 'Доступна для просмотра' },
@@ -245,23 +253,32 @@ const availableStatuses = [
 
 async function loadApplications() {
   try {
-    const params = {}
+    const params = {
+      page: pagination.value.page - 1,
+      size: pagination.value.pageSize
+    }
+
     if (statusFilter.value) {
       params.status = statusFilter.value
     }
 
+    let response
     switch (activeList.value) {
       case 'my':
-        await applicationsStore.fetchMy(params)
+        response = await applicationsStore.fetchMy(params)
         break
       case 'assigned':
-        await applicationsStore.fetchAssigned(params)
+        response = await applicationsStore.fetchAssigned(params)
         break
       case 'pending':
-        await applicationsStore.fetchPendingApproval(params)
+        response = await applicationsStore.fetchPendingApproval(params)
         break
       default:
-        await applicationsStore.fetchAll(params)
+        response = await applicationsStore.fetchAll(params)
+    }
+
+    if (response?.totalElements !== undefined) {
+      pagination.value.total = response.totalElements
     }
   } catch (error) {
     ElMessage.error('Ошибка загрузки заявок')
@@ -288,7 +305,13 @@ async function handleCreateApplication(data) {
     createDialogVisible.value = false
     await loadApplications()
   } catch (error) {
-    ElMessage.error(error.message || 'Ошибка создания заявки')
+    // Показываем понятное сообщение от сервера
+    const message = error.response?.data?.message || error.message || 'Ошибка создания заявки'
+    ElMessage.error({
+      message: message,
+      duration: 5000,
+      showClose: true
+    })
   } finally {
     formLoading.value = false
   }
@@ -303,8 +326,13 @@ function viewApplication(id) {
 }
 
 function getEmployeeName(application) {
-  if (application.employee) {
-    return application.employee.fullName || `ID: ${application.employeeId}`
+  // Backend возвращает employeeName напрямую в DTO
+  if (application.employeeName) {
+    return application.employeeName
+  }
+  // Fallback
+  if (application.employee?.fullName) {
+    return application.employee.fullName
   }
   return `ID: ${application.employeeId}`
 }
@@ -344,6 +372,17 @@ function goToAdmin() {
 async function handleLogout() {
   await authStore.logout()
   router.push('/login')
+}
+
+function handlePageChange(page) {
+  pagination.value.page = page
+  loadApplications()
+}
+
+function handleSizeChange(size) {
+  pagination.value.pageSize = size
+  pagination.value.page = 1
+  loadApplications()
 }
 
 onMounted(async () => {
@@ -566,6 +605,16 @@ onMounted(async () => {
   padding: 0 24px;
   font-weight: 600;
   font-size: 15px;
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  transition: all 0.3s ease;
+}
+
+.btn-create:hover {
+  background: linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
 }
 
 /* Filters */
@@ -579,6 +628,28 @@ onMounted(async () => {
 
 .list-tabs {
   display: flex;
+  gap: 8px;
+}
+
+:deep(.list-tabs .el-radio-button__inner) {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  padding: 8px 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+:deep(.list-tabs .el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+  border-color: #7c3aed;
+  color: white;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+:deep(.list-tabs .el-radio-button__inner:hover) {
+  border-color: #7c3aed;
+  transform: translateY(-1px);
 }
 
 .status-filter {
@@ -645,9 +716,19 @@ onMounted(async () => {
 
 .salary-cell {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.salary-change {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.salary-percent {
+  font-size: 11px;
 }
 
 /* Create Dialog */
@@ -719,5 +800,64 @@ onMounted(async () => {
   .stats-section {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* Стили кнопок в таблице */
+:deep(.el-table .el-button--primary) {
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+  border: none;
+  font-weight: 500;
+}
+
+:deep(.el-table .el-button--primary:hover) {
+  background: linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%);
+  transform: translateY(-1px);
+}
+
+/* Пагинация */
+.pagination-wrapper {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-glass);
+}
+
+:deep(.el-pagination) {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: var(--bg-glass);
+  --el-pagination-hover-color: var(--accent);
+}
+
+:deep(.el-pagination .el-pager li) {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  margin: 0 2px;
+}
+
+:deep(.el-pagination .el-pager li.is-active) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+:deep(.el-pagination button) {
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+}
+
+:deep(.el-pagination .el-select .el-input__wrapper) {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  box-shadow: none;
+}
+
+:deep(.el-table__row) {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+:deep(.el-table__row:hover) {
+  background-color: rgba(124, 58, 237, 0.1) !important;
 }
 </style>

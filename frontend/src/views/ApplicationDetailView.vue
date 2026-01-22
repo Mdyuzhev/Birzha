@@ -16,67 +16,100 @@
         <template #header>
           <div class="card-header">
             <span>Основная информация</span>
-            <ApplicationStatusBadge :status="application.status" size="large" />
+            <div class="header-actions">
+              <ApplicationStatusBadge :status="application.status" size="large" />
+              <el-button
+                v-if="canEdit && !isEditing"
+                type="primary"
+                size="small"
+                @click="startEdit"
+              >
+                Редактировать
+              </el-button>
+              <template v-if="isEditing">
+                <el-button type="success" size="small" @click="saveEdit">Сохранить</el-button>
+                <el-button size="small" @click="cancelEdit">Отмена</el-button>
+              </template>
+            </div>
           </div>
         </template>
 
         <el-descriptions :column="2" border>
           <el-descriptions-item label="ID">{{ application.id }}</el-descriptions-item>
-          <el-descriptions-item label="Тип заявки">
-            <el-tag>{{ application.applicationType === 'DEVELOPMENT' ? 'Развитие' : 'Ротация' }}</el-tag>
+          <el-descriptions-item label="Статус">
+            {{ application.statusDisplayName }}
           </el-descriptions-item>
 
           <el-descriptions-item label="Сотрудник">
-            {{ getEmployeeName() }}
+            {{ application.employeeName || '-' }}
           </el-descriptions-item>
           <el-descriptions-item label="Email сотрудника">
-            {{ application.employee?.email || '-' }}
+            {{ application.employeeEmail || '-' }}
           </el-descriptions-item>
 
-          <el-descriptions-item label="Целевая должность">
-            {{ application.targetPosition }}
+          <el-descriptions-item label="Целевая должность" :span="2">
+            <template v-if="isEditing">
+              <el-input v-model="editForm.targetPosition" />
+            </template>
+            <template v-else>
+              {{ application.targetPosition || '-' }}
+            </template>
           </el-descriptions-item>
-          <el-descriptions-item label="Целевое подразделение">
-            {{ application.targetDepartment }}
+
+          <el-descriptions-item label="Целевой стек" :span="2">
+            <template v-if="isEditing">
+              <el-input v-model="editForm.targetStack" />
+            </template>
+            <template v-else>
+              {{ application.targetStack || '-' }}
+            </template>
           </el-descriptions-item>
 
           <el-descriptions-item label="Текущая ЗП">
-            {{ formatSalary(application.currentSalary) }}
+            <template v-if="isEditing">
+              <el-input-number v-model="editForm.currentSalary" :min="0" :step="10000" controls-position="right" style="width: 100%" />
+            </template>
+            <template v-else>
+              {{ application.currentSalary ? formatSalary(application.currentSalary) : '-' }}
+            </template>
           </el-descriptions-item>
-          <el-descriptions-item label="Предлагаемая ЗП">
-            {{ formatSalary(application.proposedSalary) }}
-            <el-tag :type="getSalaryChangeType()" size="small" style="margin-left: 8px">
-              {{ getSalaryChangePercent() }}%
-            </el-tag>
+          <el-descriptions-item label="Целевая ЗП">
+            <template v-if="isEditing">
+              <el-input-number v-model="editForm.targetSalary" :min="0" :step="10000" controls-position="right" style="width: 100%" />
+            </template>
+            <template v-else>
+              {{ application.targetSalary ? formatSalary(application.targetSalary) : '-' }}
+              <el-tag v-if="application.salaryIncreasePercent" :type="getSalaryChangeType()" size="small" style="margin-left: 8px">
+                {{ application.salaryIncreasePercent > 0 ? '+' : '' }}{{ application.salaryIncreasePercent?.toFixed(1) }}%
+              </el-tag>
+            </template>
           </el-descriptions-item>
 
-          <el-descriptions-item label="Целевая дата">
-            {{ formatDate(application.targetDate) }}
-          </el-descriptions-item>
           <el-descriptions-item label="Создано">
             {{ formatDateTime(application.createdAt) }}
           </el-descriptions-item>
-
           <el-descriptions-item label="Автор заявки">
-            {{ application.submittedBy || '-' }}
+            {{ application.createdByName || '-' }}
           </el-descriptions-item>
+
           <el-descriptions-item label="Рекрутер">
-            {{ application.recruiterUsername || '-' }}
+            {{ application.recruiterName || '-' }}
           </el-descriptions-item>
-
           <el-descriptions-item label="HR BP">
-            {{ application.hrBpUsername || '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="БОРУП">
-            {{ application.borupUsername || '-' }}
+            {{ application.hrBpName || '-' }}
           </el-descriptions-item>
 
-          <el-descriptions-item label="Обоснование" :span="2">
-            {{ application.justification || '-' }}
+          <el-descriptions-item label="БОРУП" :span="2">
+            {{ application.borupName || '-' }}
           </el-descriptions-item>
 
           <el-descriptions-item label="Комментарий" :span="2">
-            {{ application.comment || '-' }}
+            <template v-if="isEditing">
+              <el-input v-model="editForm.comment" type="textarea" :rows="3" />
+            </template>
+            <template v-else>
+              {{ application.comment || '-' }}
+            </template>
           </el-descriptions-item>
         </el-descriptions>
 
@@ -105,20 +138,12 @@
             <el-card>
               <div class="history-item">
                 <div class="history-header">
-                  <ApplicationStatusBadge :status="item.newStatus" size="small" />
-                  <span class="history-user">{{ item.changedBy }}</span>
+                  <ApplicationStatusBadge v-if="item.newStatus" :status="item.newStatus" size="small" />
+                  <span class="history-action">{{ item.action }}</span>
+                  <span class="history-user">{{ item.changedByName }}</span>
                 </div>
                 <div v-if="item.comment" class="history-comment">
                   <strong>Комментарий:</strong> {{ item.comment }}
-                </div>
-                <div v-if="item.fieldChanges && item.fieldChanges.length > 0" class="history-changes">
-                  <strong>Изменения:</strong>
-                  <ul>
-                    <li v-for="change in item.fieldChanges" :key="change.fieldName">
-                      <strong>{{ change.fieldName }}:</strong>
-                      {{ change.oldValue }} → {{ change.newValue }}
-                    </li>
-                  </ul>
                 </div>
               </div>
             </el-card>
@@ -134,7 +159,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApplicationsStore } from '@/stores/applications'
 import { ElMessage } from 'element-plus'
@@ -150,14 +175,60 @@ const application = computed(() => applicationsStore.currentApplication)
 const history = computed(() => applicationsStore.history)
 const availableActions = ref([])
 
+const isEditing = ref(false)
+const editForm = reactive({
+  targetPosition: '',
+  targetStack: '',
+  currentSalary: 0,
+  targetSalary: 0,
+  comment: ''
+})
+
+const canEdit = computed(() => {
+  const editableStatuses = ['DRAFT', 'AVAILABLE_FOR_REVIEW']
+  return editableStatuses.includes(application.value?.status)
+})
+
 function goBack() {
   router.push('/applications')
 }
 
-function getEmployeeName() {
-  if (!application.value?.employee) return '-'
-  const emp = application.value.employee
-  return `${emp.lastName} ${emp.firstName} ${emp.middleName || ''}`.trim()
+function startEdit() {
+  if (!canEdit.value) return
+
+  editForm.targetPosition = application.value.targetPosition || ''
+  editForm.targetStack = application.value.targetStack || ''
+  editForm.currentSalary = application.value.currentSalary || 0
+  editForm.targetSalary = application.value.targetSalary || 0
+  editForm.comment = application.value.comment || ''
+
+  isEditing.value = true
+}
+
+function cancelEdit() {
+  isEditing.value = false
+}
+
+async function saveEdit() {
+  try {
+    await applicationsStore.update(application.value.id, {
+      targetPosition: editForm.targetPosition,
+      targetStack: editForm.targetStack,
+      currentSalary: editForm.currentSalary,
+      targetSalary: editForm.targetSalary,
+      comment: editForm.comment
+    })
+    ElMessage.success('Заявка обновлена')
+    isEditing.value = false
+    await loadApplication()
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || 'Ошибка сохранения'
+    ElMessage.error({
+      message: message,
+      duration: 5000,
+      showClose: true
+    })
+  }
 }
 
 function formatSalary(value) {
@@ -169,18 +240,12 @@ function formatSalary(value) {
   }).format(value)
 }
 
-function getSalaryChangePercent() {
-  if (!application.value?.currentSalary || !application.value?.proposedSalary) return 0
-  const change = ((application.value.proposedSalary - application.value.currentSalary) / application.value.currentSalary) * 100
-  return change > 0 ? `+${change.toFixed(1)}` : change.toFixed(1)
-}
-
 function getSalaryChangeType() {
-  if (!application.value?.currentSalary || !application.value?.proposedSalary) return 'info'
-  const change = ((application.value.proposedSalary - application.value.currentSalary) / application.value.currentSalary) * 100
-  if (change > 30) return 'danger'
-  if (change > 15) return 'warning'
-  if (change > 0) return 'success'
+  if (!application.value?.salaryIncreasePercent) return 'info'
+  const percent = application.value.salaryIncreasePercent
+  if (percent > 30) return 'danger'
+  if (percent > 15) return 'warning'
+  if (percent > 0) return 'success'
   return 'info'
 }
 
@@ -269,6 +334,12 @@ onMounted(() => {
   align-items: center;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .history-card {
   margin-bottom: 20px;
 }
@@ -283,6 +354,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.history-action {
+  font-weight: 500;
+  color: var(--el-text-color-primary);
 }
 
 .history-user {

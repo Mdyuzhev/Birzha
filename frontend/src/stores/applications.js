@@ -23,7 +23,7 @@ export const useApplicationsStore = defineStore('applications', () => {
     try {
       const response = await applicationsApi.getAll(params)
       applications.value = response.data.content || response.data
-      return response.data.content || response.data
+      return response.data
     } catch (e) {
       error.value = e.message
       throw e
@@ -55,7 +55,8 @@ export const useApplicationsStore = defineStore('applications', () => {
       applications.value.unshift(response.data)
       return response.data
     } catch (e) {
-      error.value = e.message
+      // Сохраняем сообщение от сервера
+      error.value = e.response?.data?.message || e.message
       throw e
     } finally {
       loading.value = false
@@ -76,7 +77,8 @@ export const useApplicationsStore = defineStore('applications', () => {
       }
       return response.data
     } catch (e) {
-      error.value = e.message
+      // Сохраняем сообщение от сервера
+      error.value = e.response?.data?.message || e.message
       throw e
     } finally {
       loading.value = false
@@ -107,7 +109,7 @@ export const useApplicationsStore = defineStore('applications', () => {
     try {
       const response = await applicationsApi.getMy(params)
       applications.value = response.data.content || response.data
-      return response.data.content || response.data
+      return response.data
     } catch (e) {
       error.value = e.message
       throw e
@@ -122,7 +124,7 @@ export const useApplicationsStore = defineStore('applications', () => {
     try {
       const response = await applicationsApi.getAssigned(params)
       applications.value = response.data.content || response.data
-      return response.data.content || response.data
+      return response.data
     } catch (e) {
       error.value = e.message
       throw e
@@ -137,7 +139,7 @@ export const useApplicationsStore = defineStore('applications', () => {
     try {
       const response = await applicationsApi.getPendingApproval(params)
       applications.value = response.data.content || response.data
-      return response.data.content || response.data
+      return response.data
     } catch (e) {
       error.value = e.message
       throw e

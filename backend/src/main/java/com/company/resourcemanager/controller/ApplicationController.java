@@ -76,7 +76,7 @@ public class ApplicationController {
     }
 
     @GetMapping("/assigned")
-    @PreAuthorize("hasAuthority('RECRUITER')")
+    @PreAuthorize("hasAnyAuthority('RECRUITER', 'HR_BP', 'BORUP')")
     public ResponseEntity<Page<ApplicationDto>> getAssignedToMe(
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(applicationService.getAssignedToMe(pageable));
