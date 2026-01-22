@@ -71,12 +71,20 @@
           <h1>Заявки</h1>
           <p class="subtitle">Заявки на развитие и ротацию сотрудников</p>
         </div>
-        <el-button type="primary" class="btn-create" @click="showCreateDialog">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-          </svg>
-          <span>Создать заявку</span>
-        </el-button>
+        <div class="header-actions">
+          <el-button class="btn-analytics" @click="goToAnalytics">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+            </svg>
+            <span>Аналитика</span>
+          </el-button>
+          <el-button type="primary" class="btn-create" @click="showCreateDialog">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            <span>Создать заявку</span>
+          </el-button>
+        </div>
       </div>
 
       <!-- Фильтры и переключение списков -->
@@ -369,6 +377,10 @@ function goToAdmin() {
   router.push('/admin')
 }
 
+function goToAnalytics() {
+  router.push('/applications-analytics')
+}
+
 async function handleLogout() {
   await authStore.logout()
   router.push('/login')
@@ -595,6 +607,34 @@ onMounted(async () => {
   margin: 0;
   color: var(--text-secondary);
   font-size: 15px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-analytics {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 24px;
+  font-weight: 600;
+  font-size: 15px;
+  background: var(--bg-glass) !important;
+  border: 1px solid var(--border-glass) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.3s ease;
+}
+
+.btn-analytics:hover {
+  background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%) !important;
+  border-color: #06b6d4 !important;
+  color: white !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(6, 182, 212, 0.4);
 }
 
 .btn-create {

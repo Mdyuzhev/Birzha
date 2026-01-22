@@ -308,12 +308,15 @@ onMounted(() => {
 
 <style scoped>
 .application-detail-view {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0d0d2b 100%);
   padding: 20px;
 }
 
 .page-title {
   font-size: 20px;
   font-weight: 600;
+  color: #fff;
 }
 
 .loading-container {
@@ -326,12 +329,46 @@ onMounted(() => {
 
 .info-card {
   margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+.info-card :deep(.el-card__header) {
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.info-card :deep(.el-card__body) {
+  background: transparent;
+}
+
+.info-card :deep(.el-descriptions__table) {
+  background: transparent;
+}
+
+.info-card :deep(.el-descriptions__label),
+.info-card :deep(.el-descriptions__content) {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.info-card :deep(.el-descriptions__cell) {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.card-header span {
+  color: #fff;
+  font-weight: 600;
 }
 
 .header-actions {
@@ -342,12 +379,35 @@ onMounted(() => {
 
 .history-card {
   margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+.history-card :deep(.el-card__header) {
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.history-card :deep(.el-card__body) {
+  background: transparent;
+}
+
+.history-card :deep(.el-timeline-item__timestamp) {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .history-item {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.history-item :deep(.el-card) {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .history-header {
@@ -358,24 +418,26 @@ onMounted(() => {
 
 .history-action {
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .history-user {
   font-weight: 500;
-  color: var(--el-text-color-secondary);
+  color: #60a5fa;
 }
 
 .history-comment {
   padding: 8px;
-  background-color: var(--el-fill-color-light);
+  background-color: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .history-changes {
   padding: 8px;
-  background-color: var(--el-fill-color-lighter);
+  background-color: rgba(255, 255, 255, 0.03);
   border-radius: 4px;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .history-changes ul {
@@ -385,5 +447,22 @@ onMounted(() => {
 
 .history-changes li {
   margin: 4px 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.application-detail-view :deep(.el-page-header__header) {
+  margin-bottom: 20px;
+}
+
+.application-detail-view :deep(.el-page-header__title) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.application-detail-view :deep(.el-page-header__content) {
+  color: #fff;
+}
+
+.application-detail-view :deep(.el-empty__description p) {
+  color: rgba(255, 255, 255, 0.6);
 }
 </style>

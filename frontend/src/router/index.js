@@ -63,6 +63,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/applications-analytics',
+    name: 'ApplicationsAnalytics',
+    component: () => import('@/views/ApplicationsAnalyticsView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/tech-stacks',
     name: 'TechStacks',
     component: () => import('@/views/TechStacks.vue'),

@@ -1,7 +1,7 @@
 # План доработки Birzha по ТЗ "Биржа талантов 3.0"
 
 **Дата создания:** 2026-01-21
-**Последнее обновление:** 2026-01-21
+**Последнее обновление:** 2026-01-22
 **Основание:** GAP-анализ `E:\Birzha\Tasks\GAP_ANALYSIS_TZ_VS_IMPLEMENTATION.md`
 
 ---
@@ -9,10 +9,11 @@
 ## Прогресс
 
 ```
-[████████████████░░░░░░░░] 46% (6 из 13 фаз завершено)
+[██████████████████░░░░░░] 54% (7 из 13 фаз завершено)
 ```
 
-**Текущая фаза:** 7 — Справочник стеков с workflow
+**Текущая фаза:** 7 — Справочник стеков с workflow (спецификация готова)
+**В работе:** Баг-фиксы UI модуля заявок
 
 ---
 
@@ -72,7 +73,6 @@
 - ApplicationsView.vue (список с вкладками по ролям)
 - ApplicationDetailView.vue (карточка + история)
 - Маршруты /applications и /applications/:id
-- Пункт меню в навигации
 
 ---
 
@@ -81,8 +81,8 @@
 | Фаза | Название | Статус | Инструкция |
 |------|----------|--------|------------|
 | 6 | Чёрный список кандидатов | ✅ Завершено | `Tasks/PHASE_06_BLACKLIST.md` |
-| 7 | Справочник стеков с workflow | ⏳ Ожидает | `Tasks/PHASE_07_TECH_STACKS.md` |
-| 8 | Аналитика по заявкам | ⏳ Ожидает | — |
+| 7 | Справочник стеков с workflow | 📋 Специфицировано | `Tasks/PHASE_07_TECH_STACKS.md` |
+| 8 | Аналитика по заявкам | 📋 Специфицировано | `Tasks/PHASE_08_ANALYTICS.md` |
 
 **Результаты Фазы 6:**
 - Entity BlacklistEntry и BlacklistHistory
@@ -93,6 +93,18 @@
 - BlacklistController (11 эндпоинтов)
 - Интеграция с ApplicationService (блокировка заявок)
 - API: /api/blacklist, /check, /stats, /categories
+
+**Фаза 7 — Справочник стеков (ожидает реализации):**
+- 14 файлов специфицировано
+- TechStackDirection, TechStack, TechStackRequest entities
+- Workflow запросов от ДЗО на добавление стеков
+- Frontend: TechStacksView, TechStackRequestsView
+
+**Фаза 8 — Аналитика (ожидает реализации):**
+- Дашборд с метриками заявок
+- Графики по статусам, стекам, времени
+- Фильтры по периоду и ДЗО
+- Экспорт отчётов
 
 ---
 
@@ -115,12 +127,26 @@
 
 ---
 
+## Активные баг-фиксы
+
+| Файл задачи | Описание | Статус |
+|-------------|----------|--------|
+| `Tasks/BUGFIX_APPLICATION_FORM_DATA.md` | Данные формы не сохраняются (маппинг полей) | 🔧 В работе |
+| `Tasks/BUGFIX_ERROR_MESSAGES_AND_MANAGER_EDIT.md` | Локализация ошибок, редактирование менеджером | 🔧 В работе |
+| `Tasks/BUGFIX_APPLICATION_DETAIL_EDIT_AND_API_ERRORS.md` | Ошибки API, редактирование в детальной заявке | 🔧 В работе |
+| `Tasks/UI_APPLICATIONS_TABLE_IMPROVEMENTS.md` | Пагинация, ширина колонок, убрать кнопку | 🔧 В работе |
+
+---
+
 ## Порядок выполнения
 
 ```
 ✅ Фазы 1-2   → Архитектурный фундамент (ЗАВЕРШЕНО)
 ✅ Фазы 3-5   → Модуль заявок полностью (ЗАВЕРШЕНО)
-⏳ Фазы 6-8   → Дополнительные модули (ТЕКУЩАЯ)
+✅ Фаза 6     → Чёрный список (ЗАВЕРШЕНО)
+🔧 Баг-фиксы  → UI заявок (В РАБОТЕ)
+📋 Фаза 7    → Справочник стеков (СПЕЦИФИЦИРОВАНО)
+📋 Фаза 8    → Аналитика (СПЕЦИФИЦИРОВАНО)
 ⏳ Фазы 9-10  → Уведомления и безопасность
 ⏳ Фазы 11-13 → Интеграции
 ```
@@ -138,86 +164,10 @@
 | V18 | create_hr_bp_assignments.sql | Закрепление HR BP | 2 |
 | V19 | create_applications_table.sql | Таблица заявок | 3 |
 | V20 | create_application_history_table.sql | История заявок | 3 |
-
----
-
-## API Endpoints
-
-### ДЗО (Фаза 1)
-```
-GET    /api/dzos
-POST   /api/dzos
-GET    /api/dzos/{id}
-PUT    /api/dzos/{id}
-```
-
-### Роли (Фаза 2)
-```
-GET    /api/roles
-POST   /api/roles/assign
-POST   /api/roles/remove
-GET    /api/hr-bp-assignments
-POST   /api/hr-bp-assignments
-DELETE /api/hr-bp-assignments/{id}
-```
-
-### Заявки CRUD (Фаза 3)
-```
-GET    /api/applications
-POST   /api/applications
-GET    /api/applications/{id}
-PUT    /api/applications/{id}
-DELETE /api/applications/{id}
-GET    /api/applications/my
-GET    /api/applications/assigned
-GET    /api/applications/pending-approval
-GET    /api/applications/{id}/history
-GET    /api/applications/stats
-GET    /api/applications/statuses
-```
-
-### Заявки Workflow (Фаза 4)
-```
-POST   /api/applications/{id}/submit
-POST   /api/applications/{id}/assign-recruiter
-POST   /api/applications/{id}/start-interview
-POST   /api/applications/{id}/send-to-hr-bp
-POST   /api/applications/{id}/approve-hr-bp
-POST   /api/applications/{id}/reject-hr-bp
-POST   /api/applications/{id}/send-to-borup
-POST   /api/applications/{id}/approve-borup
-POST   /api/applications/{id}/reject-borup
-POST   /api/applications/{id}/prepare-transfer
-POST   /api/applications/{id}/complete-transfer
-POST   /api/applications/{id}/dismiss
-POST   /api/applications/{id}/cancel
-POST   /api/applications/{id}/return-to-hr-bp
-POST   /api/applications/{id}/return-to-borup
-GET    /api/applications/{id}/available-actions
-POST   /api/applications/{id}/assign-hr-bp
-POST   /api/applications/{id}/assign-borup
-```
-
----
-
-## Frontend (Фаза 5)
-
-### Созданные файлы
-```
-frontend/src/api/applications.js
-frontend/src/stores/applications.js
-frontend/src/components/applications/ApplicationStatusBadge.vue
-frontend/src/components/applications/ApplicationWorkflowActions.vue
-frontend/src/components/applications/ApplicationForm.vue
-frontend/src/views/ApplicationsView.vue
-frontend/src/views/ApplicationDetailView.vue
-```
-
-### Маршруты
-```
-/applications          → ApplicationsView (список)
-/applications/:id      → ApplicationDetailView (карточка)
-```
+| V21 | create_blacklist_table.sql | Чёрный список | 6 |
+| V22 | create_blacklist_history_table.sql | История чёрного списка | 6 |
+| V23 | (ожидает) | Справочник стеков | 7 |
+| V24 | (ожидает) | Запросы на стеки | 7 |
 
 ---
 
