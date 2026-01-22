@@ -21,68 +21,30 @@
       </el-select>
     </el-form-item>
 
-    <el-form-item label="Тип заявки" prop="applicationType">
-      <el-select
-        v-model="formData.applicationType"
-        placeholder="Выберите тип заявки"
-        style="width: 100%"
-      >
-        <el-option label="Развитие" value="DEVELOPMENT" />
-        <el-option label="Ротация" value="ROTATION" />
-      </el-select>
-    </el-form-item>
-
     <el-form-item label="Целевая должность" prop="targetPosition">
       <el-input v-model="formData.targetPosition" placeholder="Название должности" />
     </el-form-item>
 
-    <el-form-item label="Целевое подразделение" prop="targetDepartment">
-      <el-input v-model="formData.targetDepartment" placeholder="Название подразделения" />
-    </el-form-item>
-
-    <el-form-item label="Технологический стек">
-      <el-select
-        v-model="formData.techStackIds"
-        multiple
-        filterable
-        placeholder="Выберите стеки"
-        style="width: 100%"
-        :loading="techStacksLoading"
-      >
-        <el-option-group
-          v-for="direction in techDirections"
-          :key="direction.id"
-          :label="direction.name"
-        >
-          <el-option
-            v-for="stack in direction.stacks"
-            :key="stack.id"
-            :label="stack.name"
-            :value="stack.id"
-          >
-            <span>{{ stack.name }}</span>
-            <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-              {{ stack.code }}
-            </span>
-          </el-option>
-        </el-option-group>
-      </el-select>
+    <el-form-item label="Целевой стек">
+      <el-input v-model="formData.targetStack" placeholder="Java, Python, React, DevOps..." />
     </el-form-item>
 
     <el-form-item label="Текущая ЗП">
       <el-input-number
         v-model="formData.currentSalary"
         :min="0"
-        :step="1000"
+        :step="10000"
+        :precision="2"
         style="width: 100%"
       />
     </el-form-item>
 
-    <el-form-item label="Предлагаемая ЗП">
+    <el-form-item label="Целевая ЗП">
       <el-input-number
-        v-model="formData.proposedSalary"
+        v-model="formData.targetSalary"
         :min="0"
-        :step="1000"
+        :step="10000"
+        :precision="2"
         style="width: 100%"
       />
     </el-form-item>
@@ -91,32 +53,17 @@
       <el-tag :type="salaryIncreaseType">
         {{ salaryIncreasePercent }}%
       </el-tag>
-    </el-form-item>
-
-    <el-form-item label="Целевая дата">
-      <el-date-picker
-        v-model="formData.targetDate"
-        type="date"
-        placeholder="Выберите дату"
-        style="width: 100%"
-      />
-    </el-form-item>
-
-    <el-form-item label="Обоснование" prop="justification">
-      <el-input
-        v-model="formData.justification"
-        type="textarea"
-        :rows="4"
-        placeholder="Опишите причины и обоснование заявки"
-      />
+      <span v-if="requiresBorup" style="margin-left: 10px; color: #f59e0b;">
+        ⚠️ Требует согласования БОРУП (>30%)
+      </span>
     </el-form-item>
 
     <el-form-item label="Комментарий">
       <el-input
         v-model="formData.comment"
         type="textarea"
-        :rows="3"
-        placeholder="Дополнительные комментарии"
+        :rows="4"
+        placeholder="Опишите причины и обоснование заявки"
       />
     </el-form-item>
 
@@ -133,7 +80,6 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '@/api/client'
-import { useTechStackStore } from '@/stores/techStack'
 
 const props = defineProps({
   application: {
@@ -150,47 +96,31 @@ const emit = defineEmits(['submit', 'cancel'])
 
 const formRef = ref(null)
 const employees = ref([])
-const techStackStore = useTechStackStore()
-const techStacksLoading = ref(false)
 
 const isEditMode = computed(() => !!props.application)
 
-const techDirections = computed(() => techStackStore.directions)
-
 const formData = reactive({
   employeeId: null,
-  applicationType: 'DEVELOPMENT',
   targetPosition: '',
-  targetDepartment: '',
-  techStackIds: [],
+  targetStack: '',
   currentSalary: 0,
-  proposedSalary: 0,
-  targetDate: null,
-  justification: '',
-  comment: ''
+  targetSalary: 0,
+  comment: '',
+  hrBpId: null
 })
 
 const rules = {
   employeeId: [
     { required: true, message: 'Выберите сотрудника', trigger: 'change' }
   ],
-  applicationType: [
-    { required: true, message: 'Выберите тип заявки', trigger: 'change' }
-  ],
   targetPosition: [
     { required: true, message: 'Укажите целевую должность', trigger: 'blur' }
-  ],
-  targetDepartment: [
-    { required: true, message: 'Укажите целевое подразделение', trigger: 'blur' }
-  ],
-  justification: [
-    { required: true, message: 'Укажите обоснование', trigger: 'blur' }
   ]
 }
 
 const salaryIncreasePercent = computed(() => {
-  if (!formData.currentSalary || !formData.proposedSalary) return 0
-  const increase = ((formData.proposedSalary - formData.currentSalary) / formData.currentSalary) * 100
+  if (!formData.currentSalary || !formData.targetSalary) return 0
+  const increase = ((formData.targetSalary - formData.currentSalary) / formData.currentSalary) * 100
   return increase.toFixed(2)
 })
 
@@ -202,19 +132,20 @@ const salaryIncreaseType = computed(() => {
   return 'info'
 })
 
+const requiresBorup = computed(() => {
+  return parseFloat(salaryIncreasePercent.value) > 30
+})
+
 watch(() => props.application, (newVal) => {
   if (newVal) {
     Object.assign(formData, {
       employeeId: newVal.employeeId,
-      applicationType: newVal.applicationType,
-      targetPosition: newVal.targetPosition,
-      targetDepartment: newVal.targetDepartment,
-      techStackIds: newVal.techStackIds || [],
+      targetPosition: newVal.targetPosition || '',
+      targetStack: newVal.targetStack || '',
       currentSalary: newVal.currentSalary || 0,
-      proposedSalary: newVal.proposedSalary || 0,
-      targetDate: newVal.targetDate ? new Date(newVal.targetDate) : null,
-      justification: newVal.justification || '',
-      comment: newVal.comment || ''
+      targetSalary: newVal.targetSalary || 0,
+      comment: newVal.comment || '',
+      hrBpId: newVal.hrBpId || null
     })
   }
 }, { immediate: true })
@@ -230,25 +161,18 @@ async function fetchEmployees() {
   }
 }
 
-async function fetchTechStacks() {
-  techStacksLoading.value = true
-  try {
-    await techStackStore.fetchDirections(true)
-  } catch (error) {
-    // Игнорируем ошибку - tech stacks опциональны
-    console.warn('Tech stacks API не доступен:', error.message)
-  } finally {
-    techStacksLoading.value = false
-  }
-}
-
 async function handleSubmit() {
   const valid = await formRef.value.validate()
   if (!valid) return
 
   const data = {
-    ...formData,
-    targetDate: formData.targetDate?.toISOString().split('T')[0]
+    employeeId: formData.employeeId,
+    targetPosition: formData.targetPosition,
+    targetStack: formData.targetStack || null,
+    currentSalary: formData.currentSalary || null,
+    targetSalary: formData.targetSalary || null,
+    comment: formData.comment || null,
+    hrBpId: formData.hrBpId || null
   }
 
   emit('submit', data)
@@ -260,6 +184,5 @@ function handleCancel() {
 
 onMounted(() => {
   fetchEmployees()
-  fetchTechStacks()
 })
 </script>

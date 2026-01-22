@@ -153,8 +153,8 @@
 
           <el-table-column label="ЗП" width="200">
             <template #default="{ row }">
-              <div v-if="row.currentSalary && row.proposedSalary" class="salary-cell">
-                <span>{{ formatSalary(row.currentSalary) }} → {{ formatSalary(row.proposedSalary) }}</span>
+              <div v-if="row.currentSalary && row.targetSalary" class="salary-cell">
+                <span>{{ formatSalary(row.currentSalary) }} → {{ formatSalary(row.targetSalary) }}</span>
                 <el-tag :type="getSalaryChangeType(row)" size="small">
                   {{ getSalaryChangePercent(row) }}%
                 </el-tag>
@@ -314,8 +314,8 @@ function formatSalary(value) {
 }
 
 function getSalaryChangePercent(application) {
-  if (!application.currentSalary || !application.proposedSalary) return 0
-  const change = ((application.proposedSalary - application.currentSalary) / application.currentSalary) * 100
+  if (!application.currentSalary || !application.targetSalary) return 0
+  const change = ((application.targetSalary - application.currentSalary) / application.currentSalary) * 100
   return change.toFixed(1)
 }
 
